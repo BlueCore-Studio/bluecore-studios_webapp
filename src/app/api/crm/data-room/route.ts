@@ -1,50 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { dataRoomDocuments } from "@/lib/schema/crm";
-import { desc, like, eq } from "drizzle-orm";
+import { desc, like, eq, and, SQL } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const limit = parseInt(searchParams.get("limit") || "50");
-  const page = parseInt(searchParams.get("page") || "1");
-  const offset = (page - 1) * limit;
-  const search = searchParams.get("search");
-  const category = searchParams.get("category");
+  try {
+    const { searchParams } = request.nextUrl;
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const page = parseInt(searchParams.get("page") || "1");
+    const offset = (page - 1) * limit;
+    const search = searchParams.get("search");
+    const category = searchParams.get("category");
 
-  let query = db.select().from(dataRoomDocuments).$dynamic();
-
-  const conditions = [];
-  if (search) {
-    conditions.push(like(dataRoomDocuments.name, `%${search}%`));
-  }
-  if (category && category !== "all") {
-    conditions.push(eq(dataRoomDocuments.category, category as typeof dataRoomDocuments.category.enumValues[number]));
-  }
-
-  if (conditions.length > 0) {
-    for (const cond of conditions) {
-      query = query.where(cond);
+    const conditions: SQL[] = [];
+    if (search) {
+      conditions.push(like(dataRoomDocuments.name, `%${search}%`));
     }
+    if (category && category !== "all") {
+      conditions.push(eq(dataRoomDocuments.category, category as typeof dataRoomDocuments.category.enumValues[number]));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await db
+      .select()
+      .from(dataRoomDocuments)
+      .where(whereClause)
+      .orderBy(desc(dataRoomDocuments.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return NextResponse.json({
+      data: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        category: r.category,
+        file_url: r.fileUrl,
+        file_type: r.fileType,
+        shared_by: r.sharedBy,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Data room GET error:", error);
+    return NextResponse.json({ data: [] });
   }
-
-  const rows = await query
-    .orderBy(desc(dataRoomDocuments.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  return NextResponse.json({
-    data: rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      description: r.description,
-      category: r.category,
-      file_url: r.fileUrl,
-      file_type: r.fileType,
-      shared_by: r.sharedBy,
-      created_at: r.createdAt,
-      updated_at: r.updatedAt,
-    })),
-  });
 }
 
 export async function POST(request: NextRequest) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Database, Search, Download, TrendingUp, DollarSign, Building2, Layers } from "lucide-react";
+import { Database, Search, Download, TrendingUp, DollarSign, Building2, Layers, Check } from "lucide-react";
 
 interface FundingRound {
   id: number;
@@ -14,6 +14,7 @@ interface FundingRound {
   source: string;
   source_url: string | null;
   company_website: string | null;
+  imported: boolean;
 }
 
 interface FundingStats {
@@ -76,7 +77,7 @@ export default function FundingPage() {
     try {
       const res = await fetch(`/api/crm/funding/${id}/import`, { method: "POST" });
       if (res.ok) {
-        alert("Lead imported successfully!");
+        fetchData();
       } else {
         const json = await res.json();
         alert(json.error || "Import failed");
@@ -195,15 +196,21 @@ export default function FundingPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleImport(round.id)}
-                        disabled={importing === round.id}
-                        className="px-3 py-1 rounded-md text-xs font-medium bg-accent-alt/10 text-accent-alt border border-accent-alt/20 hover:bg-accent-alt/20 transition-colors disabled:opacity-50"
-                      >
-                        {importing === round.id ? "..." : (
-                          <><Download size={12} className="inline mr-1" />Import</>
-                        )}
-                      </button>
+                      {round.imported ? (
+                        <span className="px-3 py-1 rounded-md text-xs font-medium bg-card text-dim border border-edge cursor-default inline-flex items-center">
+                          <Check size={12} className="inline mr-1" />Imported
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleImport(round.id)}
+                          disabled={importing === round.id}
+                          className="px-3 py-1 rounded-md text-xs font-medium bg-accent-alt/10 text-accent-alt border border-accent-alt/20 hover:bg-accent-alt/20 transition-colors disabled:opacity-50"
+                        >
+                          {importing === round.id ? "..." : (
+                            <><Download size={12} className="inline mr-1" />Import</>
+                          )}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
