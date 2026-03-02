@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { fundingRounds } from "@/lib/schema/crm";
-import { desc, asc, like, eq, gte, lte, sql, and, or } from "drizzle-orm";
+import { fundingRounds, leads } from "@/lib/schema/crm";
+import { desc, asc, like, eq, gte, lte, sql, and, or, isNotNull } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -61,6 +61,13 @@ export async function GET(request: NextRequest) {
     .from(fundingRounds)
     .orderBy(asc(fundingRounds.roundType));
 
+  // Get funding round IDs that have already been imported as leads
+  const importedRows = await db
+    .select({ fundingRoundId: leads.fundingRoundId })
+    .from(leads)
+    .where(isNotNull(leads.fundingRoundId));
+  const importedIds = new Set(importedRows.map((r) => r.fundingRoundId));
+
   return NextResponse.json({
     data: rows.map((r) => ({
       id: r.id,
@@ -77,6 +84,7 @@ export async function GET(request: NextRequest) {
       description: r.description,
       created_at: r.createdAt,
       updated_at: r.updatedAt,
+      imported: importedIds.has(r.id),
     })),
     total: countRow.count,
     page,
