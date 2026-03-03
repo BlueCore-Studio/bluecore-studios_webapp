@@ -411,15 +411,22 @@ export default function LeadDetailPage() {
           <div className="glass-card rounded-xl p-4 space-y-3">
             <h3 className="font-display font-semibold text-heading text-sm">Details</h3>
             <div className="space-y-2 text-sm">
-              {lead.contactName && (
-                <div className="flex items-center gap-2 text-muted"><User size={14} /> {lead.contactName}</div>
-              )}
-              {lead.contactEmail && (
-                <div className="flex items-center gap-2 text-muted"><Mail size={14} /> <a href={`mailto:${lead.contactEmail}`} className="hover:text-accent">{lead.contactEmail}</a></div>
-              )}
-              {lead.contactTitle && (
-                <div className="flex items-center gap-2 text-muted"><Briefcase size={14} /> {lead.contactTitle}</div>
-              )}
+              {lead.contactName && (() => {
+                const names = lead.contactName!.split("\n");
+                const emails = (lead.contactEmail || "").split("\n");
+                const titles = (lead.contactTitle || "").split("\n");
+                return names.map((name, i) => (
+                  <div key={i} className={`space-y-0.5 ${i > 0 ? "pt-2 border-t border-edge/50" : ""}`}>
+                    <div className="flex items-center gap-2 text-muted"><User size={14} /> {name}</div>
+                    {emails[i] && emails[i] !== "-" && (
+                      <div className="flex items-center gap-2 text-muted pl-5"><Mail size={14} /> <a href={`mailto:${emails[i]}`} className="hover:text-accent text-xs">{emails[i]}</a></div>
+                    )}
+                    {titles[i] && titles[i] !== "-" && (
+                      <div className="flex items-center gap-2 text-muted pl-5"><Briefcase size={14} /> <span className="text-xs">{titles[i]}</span></div>
+                    )}
+                  </div>
+                ));
+              })()}
               <div className="flex items-center gap-2 text-muted"><Calendar size={14} /> Created {new Date(lead.createdAt).toLocaleDateString()}</div>
               {lead.dealValue && (
                 <div className="flex items-center gap-2 text-heading font-mono">

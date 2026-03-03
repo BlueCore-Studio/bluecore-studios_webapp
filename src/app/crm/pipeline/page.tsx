@@ -171,7 +171,7 @@ export default function PipelinePage() {
                                   </div>
                                   {lead.contactName && (
                                     <div className="flex items-center gap-1 text-xs text-muted mb-1">
-                                      <Building2 size={10} /> {lead.contactName}
+                                      <Building2 size={10} /> {lead.contactName.split("\n")[0]}
                                     </div>
                                   )}
                                   <div className="flex items-center gap-3 mt-2">

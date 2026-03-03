@@ -178,7 +178,7 @@ export default function LeadsPage() {
                         {lead.company_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted">{lead.contact_name || "—"}</td>
+                    <td className="px-4 py-3 text-muted">{lead.contact_name ? lead.contact_name.split("\n")[0] : "—"}</td>
                     <td className="px-4 py-3">
                       <span className={`stage-${lead.stage} px-2 py-0.5 rounded-full text-xs border`}>
                         {stageLabels[lead.stage] || lead.stage}
