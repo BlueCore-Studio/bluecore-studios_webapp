@@ -23,7 +23,18 @@ export async function GET(request: NextRequest) {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const rows = await db
-      .select()
+      .select({
+        id: dataRoomDocuments.id,
+        name: dataRoomDocuments.name,
+        description: dataRoomDocuments.description,
+        category: dataRoomDocuments.category,
+        fileUrl: dataRoomDocuments.fileUrl,
+        fileType: dataRoomDocuments.fileType,
+        fileSize: dataRoomDocuments.fileSize,
+        sharedBy: dataRoomDocuments.sharedBy,
+        createdAt: dataRoomDocuments.createdAt,
+        updatedAt: dataRoomDocuments.updatedAt,
+      })
       .from(dataRoomDocuments)
       .where(whereClause)
       .orderBy(desc(dataRoomDocuments.createdAt))
@@ -38,6 +49,7 @@ export async function GET(request: NextRequest) {
         category: r.category,
         file_url: r.fileUrl,
         file_type: r.fileType,
+        file_size: r.fileSize,
         shared_by: r.sharedBy,
         created_at: r.createdAt,
         updated_at: r.updatedAt,

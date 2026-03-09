@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, Globe, User, Mail, Briefcase,
   Calendar, MessageSquare, Phone, Video, Send, Clock,
   ChevronDown, Plus, Check, Trash2, ExternalLink, StickyNote,
-  UserPlus, X,
+  UserPlus, X, Bug, Shield,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -65,6 +65,19 @@ interface Note {
   createdAt: string;
 }
 
+interface BugBountySubmission {
+  id: number;
+  leadId: number;
+  platform: string;
+  title: string;
+  details: string | null;
+  severity: string;
+  status: string;
+  reward: number | null;
+  submittedAt: string;
+  createdAt: string;
+}
+
 const STAGES = ["new", "contacted", "meeting", "proposal", "closed_won", "closed_lost"];
 const stageLabels: Record<string, string> = { new: "New", contacted: "Contacted", meeting: "Meeting", proposal: "Proposal", closed_won: "Won", closed_lost: "Lost" };
 const activityIcons: Record<string, typeof MessageSquare> = { note: MessageSquare, email: Send, call: Phone, meeting: Video, stage_change: ChevronDown, other: MessageSquare };
@@ -77,6 +90,7 @@ export default function LeadDetailPage() {
   const [followUpsList, setFollowUps] = useState<FollowUp[]>([]);
   const [contactsList, setContacts] = useState<Contact[]>([]);
   const [notesList, setNotes] = useState<Note[]>([]);
+  const [bountyList, setBounties] = useState<BugBountySubmission[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Forms
@@ -88,6 +102,8 @@ export default function LeadDetailPage() {
   const [contactForm, setContactForm] = useState({ name: "", email: "", title: "", phone: "" });
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteForm, setNoteForm] = useState({ content: "", author_name: "" });
+  const [showBountyForm, setShowBountyForm] = useState(false);
+  const [bountyForm, setBountyForm] = useState({ platform: "hackerone", title: "", details: "", severity: "medium", status: "submitted", reward: "", submitted_at: "" });
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
 
@@ -122,9 +138,15 @@ export default function LeadDetailPage() {
     setNotes(json.notes);
   }, [id]);
 
+  const fetchBounties = useCallback(async () => {
+    const res = await fetch(`/api/crm/leads/${id}/bug-bounties`);
+    const json = await res.json();
+    setBounties(json.submissions);
+  }, [id]);
+
   useEffect(() => {
-    Promise.all([fetchLead(), fetchActivities(), fetchFollowUps(), fetchContacts(), fetchNotes()]).then(() => setLoading(false));
-  }, [fetchLead, fetchActivities, fetchFollowUps, fetchContacts, fetchNotes]);
+    Promise.all([fetchLead(), fetchActivities(), fetchFollowUps(), fetchContacts(), fetchNotes(), fetchBounties()]).then(() => setLoading(false));
+  }, [fetchLead, fetchActivities, fetchFollowUps, fetchContacts, fetchNotes, fetchBounties]);
 
   const handleStageChange = async (newStage: string) => {
     await fetch(`/api/crm/leads/${id}/stage`, {
@@ -202,6 +224,32 @@ export default function LeadDetailPage() {
   const handleDeleteNote = async (noteId: number) => {
     await fetch(`/api/crm/leads/${id}/notes/${noteId}`, { method: "DELETE" });
     fetchNotes();
+  };
+
+  const handleAddBounty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch(`/api/crm/leads/${id}/bug-bounties`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bountyForm),
+    });
+    setBountyForm({ platform: "hackerone", title: "", details: "", severity: "medium", status: "submitted", reward: "", submitted_at: "" });
+    setShowBountyForm(false);
+    fetchBounties();
+  };
+
+  const handleDeleteBounty = async (bountyId: number) => {
+    await fetch(`/api/crm/leads/${id}/bug-bounties/${bountyId}`, { method: "DELETE" });
+    fetchBounties();
+  };
+
+  const handleUpdateBountyStatus = async (bountyId: number, status: string) => {
+    await fetch(`/api/crm/leads/${id}/bug-bounties/${bountyId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    fetchBounties();
   };
 
   const handleSaveEdit = async () => {
@@ -350,6 +398,168 @@ export default function LeadDetailPage() {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+
+          {/* Bug Bounty Submissions */}
+          <div className="glass-card rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-heading text-sm flex items-center gap-2">
+                <Bug size={14} className="text-accent" /> Bug Bounty Submissions
+              </h3>
+              <button onClick={() => setShowBountyForm(!showBountyForm)} className="flex items-center gap-1 px-2 py-1 text-xs text-accent hover:bg-accent/10 rounded transition-colors">
+                {showBountyForm ? <X size={14} /> : <Plus size={14} />} {showBountyForm ? "Close" : "Add"}
+              </button>
+            </div>
+            {showBountyForm && (
+              <form onSubmit={handleAddBounty} className="mb-4 p-3 bg-surface rounded-lg border border-edge space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">Platform *</label>
+                    <select required value={bountyForm.platform} onChange={(e) => setBountyForm({ ...bountyForm, platform: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading focus:outline-none">
+                      <option value="hackerone">HackerOne</option>
+                      <option value="bugcrowd">Bugcrowd</option>
+                      <option value="immunefi">Immunefi</option>
+                      <option value="sherlock">Sherlock</option>
+                      <option value="hackenproof">HackenProof</option>
+                      <option value="cantina">Cantina</option>
+                      <option value="codehawks">CodeHawks</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">Severity</label>
+                    <select value={bountyForm.severity} onChange={(e) => setBountyForm({ ...bountyForm, severity: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading focus:outline-none">
+                      <option value="informational">Informational</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted mb-1 block">Title *</label>
+                  <input required placeholder="Submission title" value={bountyForm.title} onChange={(e) => setBountyForm({ ...bountyForm, title: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading placeholder:text-dim focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted mb-1 block">Details</label>
+                  <textarea placeholder="Submission details, vulnerability description, steps to reproduce..." value={bountyForm.details} onChange={(e) => setBountyForm({ ...bountyForm, details: e.target.value })} rows={3} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading placeholder:text-dim focus:outline-none resize-none" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">Status</label>
+                    <select value={bountyForm.status} onChange={(e) => setBountyForm({ ...bountyForm, status: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading focus:outline-none">
+                      <option value="submitted">Submitted</option>
+                      <option value="triaged">Triaged</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="duplicate">Duplicate</option>
+                      <option value="not_applicable">N/A</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">Reward ($)</label>
+                    <input type="number" step="0.01" placeholder="0.00" value={bountyForm.reward} onChange={(e) => setBountyForm({ ...bountyForm, reward: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading placeholder:text-dim focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">Submitted Date</label>
+                    <input type="date" value={bountyForm.submitted_at} onChange={(e) => setBountyForm({ ...bountyForm, submitted_at: e.target.value })} className="w-full px-2 py-1.5 bg-card border border-edge rounded text-xs text-heading focus:outline-none" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="px-3 py-1.5 bg-accent text-white text-xs rounded hover:bg-accent/90 transition-colors">Add Submission</button>
+                  <button type="button" onClick={() => setShowBountyForm(false)} className="px-3 py-1.5 bg-card border border-edge text-xs text-muted rounded hover:text-heading transition-colors">Cancel</button>
+                </div>
+              </form>
+            )}
+            <div className="space-y-3">
+              {bountyList.length === 0 ? (
+                <p className="text-muted text-xs py-4 text-center">No bug bounty submissions yet</p>
+              ) : (
+                bountyList.map((b) => {
+                  const severityColors: Record<string, string> = {
+                    informational: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+                    low: "text-green-400 bg-green-500/10 border-green-500/20",
+                    medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+                    high: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+                    critical: "text-red-400 bg-red-500/10 border-red-500/20",
+                  };
+                  const statusColors: Record<string, string> = {
+                    submitted: "text-blue-400 bg-blue-500/10",
+                    triaged: "text-purple-400 bg-purple-500/10",
+                    accepted: "text-green-400 bg-green-500/10",
+                    rejected: "text-red-400 bg-red-500/10",
+                    resolved: "text-emerald-400 bg-emerald-500/10",
+                    duplicate: "text-yellow-400 bg-yellow-500/10",
+                    not_applicable: "text-gray-400 bg-gray-500/10",
+                  };
+                  const platformLabels: Record<string, string> = {
+                    hackerone: "HackerOne",
+                    bugcrowd: "Bugcrowd",
+                    immunefi: "Immunefi",
+                    sherlock: "Sherlock",
+                    hackenproof: "HackenProof",
+                    cantina: "Cantina",
+                    codehawks: "CodeHawks",
+                    other: "Other",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    submitted: "Submitted",
+                    triaged: "Triaged",
+                    accepted: "Accepted",
+                    rejected: "Rejected",
+                    resolved: "Resolved",
+                    duplicate: "Duplicate",
+                    not_applicable: "N/A",
+                  };
+                  return (
+                    <div key={b.id} className="p-3 bg-surface rounded-lg border border-edge/50 group">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-heading">{b.title}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${severityColors[b.severity] || ""}`}>
+                              {b.severity.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="flex items-center gap-1 text-xs text-muted">
+                              <Shield size={10} /> {platformLabels[b.platform] || b.platform}
+                            </span>
+                            <select
+                              value={b.status}
+                              onChange={(e) => handleUpdateBountyStatus(b.id, e.target.value)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-medium border-0 cursor-pointer focus:outline-none ${statusColors[b.status] || ""}`}
+                            >
+                              <option value="submitted">Submitted</option>
+                              <option value="triaged">Triaged</option>
+                              <option value="accepted">Accepted</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="resolved">Resolved</option>
+                              <option value="duplicate">Duplicate</option>
+                              <option value="not_applicable">N/A</option>
+                            </select>
+                            {b.reward != null && b.reward > 0 && (
+                              <span className="text-xs font-mono text-green-400">${b.reward.toLocaleString()}</span>
+                            )}
+                          </div>
+                          {b.details && (
+                            <p className="text-xs text-muted mt-2 whitespace-pre-wrap">{b.details}</p>
+                          )}
+                          <p className="text-xs text-dim mt-1.5">
+                            {new Date(b.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        </div>
+                        <button onClick={() => handleDeleteBounty(b.id)} className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition-all shrink-0">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

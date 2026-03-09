@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey, blob } from "drizzle-orm/sqlite-core";
 
 export const leads = sqliteTable("leads", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -113,6 +113,8 @@ export const dataRoomDocuments = sqliteTable("data_room_documents", {
   }).notNull().default("other"),
   fileUrl: text("file_url").notNull(),
   fileType: text("file_type"),
+  fileData: blob("file_data", { mode: "buffer" }),
+  fileSize: integer("file_size"),
   sharedBy: text("shared_by").notNull(),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
@@ -126,5 +128,25 @@ export type FollowUp = typeof followUps.$inferSelect;
 export type FundingRoundRow = typeof fundingRounds.$inferSelect;
 export type LeadContact = typeof leadContacts.$inferSelect;
 export type LeadNote = typeof leadNotes.$inferSelect;
+export const bugBountySubmissions = sqliteTable("bug_bounty_submissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  platform: text("platform", {
+    enum: ["hackerone", "bugcrowd", "immunefi", "sherlock", "hackenproof", "cantina", "codehawks", "other"],
+  }).notNull(),
+  title: text("title").notNull(),
+  details: text("details"),
+  severity: text("severity", {
+    enum: ["informational", "low", "medium", "high", "critical"],
+  }).notNull().default("medium"),
+  status: text("status", {
+    enum: ["submitted", "triaged", "accepted", "rejected", "resolved", "duplicate", "not_applicable"],
+  }).notNull().default("submitted"),
+  reward: real("reward"),
+  submittedAt: text("submitted_at").notNull().$defaultFn(() => new Date().toISOString()),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
+});
+
 export type DailyReport = typeof dailyReports.$inferSelect;
 export type DataRoomDocument = typeof dataRoomDocuments.$inferSelect;
+export type BugBountySubmission = typeof bugBountySubmissions.$inferSelect;

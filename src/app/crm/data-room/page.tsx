@@ -32,6 +32,7 @@ interface DataRoomDoc {
   category: string;
   file_url: string;
   file_type: string | null;
+  file_size: number | null;
   shared_by: string;
   created_at: string;
   updated_at: string;
@@ -94,16 +95,23 @@ function getDomain(url: string) {
   }
 }
 
-/* ── Helpers ──────────────────────────────────────────────────── */
-
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function isLocalFile(url: string) {
-  return url.startsWith("/data-room/");
+function isUploadedFile(doc: DataRoomDoc) {
+  return doc.file_size != null && doc.file_size > 0;
+}
+
+function isExternalLink(url: string) {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /* ── Add / Edit Modal ────────────────────────────────────────── */
@@ -121,7 +129,7 @@ function DocModal({
 }) {
   const isEdit = !!doc;
   const [mode, setMode] = useState<SourceMode>(
-    isEdit && doc.file_url && !isLocalFile(doc.file_url) ? "link" : "upload"
+    isEdit && doc.file_url && isExternalLink(doc.file_url) ? "link" : "upload"
   );
   const [form, setForm] = useState({
     name: doc?.name || "",
@@ -132,85 +140,92 @@ function DocModal({
     shared_by: doc?.shared_by || "",
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(
-    isEdit && doc.file_url && isLocalFile(doc.file_url) ? doc.file_url.split("/").pop() || null : null
-  );
+  const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const inputClass =
     "w-full px-3 py-2 bg-surface border border-edge rounded-lg text-heading text-sm placeholder:text-dim focus:outline-none focus:border-accent/50 transition-colors";
 
-  const handleFileUpload = async (file: globalThis.File) => {
+  const handleFileSelect = (file: globalThis.File) => {
     if (file.size > 25 * 1024 * 1024) {
       setUploadError("File too large. Maximum size is 25MB.");
       return;
     }
-
-    setUploading(true);
     setUploadError(null);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/crm/data-room/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      setForm((prev) => ({
-        ...prev,
-        file_url: data.file_url,
-        file_type: data.file_type || prev.file_type,
-        name: prev.name || file.name.replace(/\.[^.]+$/, ""),
-      }));
-      setUploadedFileName(file.name);
-    } else {
-      const err = await res.json();
-      setUploadError(err.error || "Upload failed");
-    }
-
-    setUploading(false);
+    setSelectedFile(file);
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || file.name.replace(/\.[^.]+$/, ""),
+      file_type: file.type || file.name.split(".").pop() || "",
+    }));
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
+    if (file) handleFileSelect(file);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
+    if (file) handleFileSelect(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (mode === "upload" && !form.file_url) {
-      setUploadError("Please upload a file first");
+    if (mode === "upload" && !selectedFile && !isEdit) {
+      setUploadError("Please select a file first");
       return;
     }
 
     setSaving(true);
 
-    const url = isEdit ? `/api/crm/data-room/${doc.id}` : "/api/crm/data-room";
-    const method = isEdit ? "PATCH" : "POST";
+    try {
+      if (mode === "upload" && selectedFile) {
+        // Upload file + metadata together via FormData
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("name", form.name);
+        formData.append("description", form.description);
+        formData.append("category", form.category);
+        formData.append("file_type", form.file_type);
+        formData.append("shared_by", form.shared_by);
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+        const res = await fetch("/api/crm/data-room/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-    if (res.ok) {
-      onSaved();
-      onClose();
+        if (res.ok) {
+          onSaved();
+          onClose();
+        } else {
+          const err = await res.json();
+          setUploadError(err.error || "Upload failed");
+        }
+      } else {
+        // Link-based doc or edit (no new file)
+        const url = isEdit ? `/api/crm/data-room/${doc.id}` : "/api/crm/data-room";
+        const method = isEdit ? "PATCH" : "POST";
+
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+
+        if (res.ok) {
+          onSaved();
+          onClose();
+        }
+      }
+    } catch {
+      setUploadError("Something went wrong");
     }
+
     setSaving(false);
   };
 
@@ -325,25 +340,35 @@ function DocModal({
               <label className="text-xs text-muted mb-1.5 block font-medium">
                 File *
               </label>
-              {uploadedFileName ? (
+              {selectedFile ? (
                 <div className="flex items-center gap-3 p-3 bg-surface border border-edge rounded-lg">
                   <div className="flex-shrink-0 w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
-                    {getFileIcon(form.file_type, form.file_url)}
+                    {getFileIcon(form.file_type, selectedFile.name)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-heading truncate">{uploadedFileName}</p>
-                    <p className="text-[11px] text-dim">{form.file_type}</p>
+                    <p className="text-sm text-heading truncate">{selectedFile.name}</p>
+                    <p className="text-[11px] text-dim">{formatFileSize(selectedFile.size)}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      setUploadedFileName(null);
-                      setForm((prev) => ({ ...prev, file_url: "", file_type: "" }));
+                      setSelectedFile(null);
+                      setForm((prev) => ({ ...prev, file_type: "" }));
                     }}
                     className="p-1 rounded hover:bg-card text-muted hover:text-heading transition-colors"
                   >
                     <X size={14} />
                   </button>
+                </div>
+              ) : isEdit && isUploadedFile(doc!) ? (
+                <div className="flex items-center gap-3 p-3 bg-surface border border-edge rounded-lg">
+                  <div className="flex-shrink-0 w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
+                    {getFileIcon(doc!.file_type, doc!.file_url)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-heading truncate">{doc!.file_url}</p>
+                    <p className="text-[11px] text-dim">{formatFileSize(doc!.file_size!)}</p>
+                  </div>
                 </div>
               ) : (
                 <label
@@ -354,16 +379,12 @@ function DocModal({
                     dragOver
                       ? "border-accent bg-accent/5"
                       : "border-edge hover:border-muted"
-                  } ${uploading ? "pointer-events-none opacity-60" : ""}`}
+                  }`}
                 >
-                  {uploading ? (
-                    <Loader2 size={24} className="text-accent animate-spin" />
-                  ) : (
-                    <Upload size={24} className="text-dim" />
-                  )}
+                  <Upload size={24} className="text-dim" />
                   <div className="text-center">
                     <p className="text-sm text-muted">
-                      {uploading ? "Uploading..." : "Drop file here or click to browse"}
+                      Drop file here or click to browse
                     </p>
                     <p className="text-[11px] text-dim mt-0.5">Max 25MB</p>
                   </div>
@@ -371,7 +392,6 @@ function DocModal({
                     type="file"
                     onChange={handleFileInput}
                     className="hidden"
-                    disabled={uploading}
                   />
                 </label>
               )}
@@ -425,16 +445,19 @@ function DocModal({
           <div className="flex items-center gap-3 pt-2">
             <button
               type="submit"
-              disabled={saving || uploading}
+              disabled={saving}
               className="flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
             >
-              {saving
-                ? isEdit
-                  ? "Saving..."
-                  : "Adding..."
-                : isEdit
-                ? "Save Changes"
-                : "Add Document"}
+              {saving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  {mode === "upload" && selectedFile ? "Uploading..." : isEdit ? "Saving..." : "Adding..."}
+                </>
+              ) : isEdit ? (
+                "Save Changes"
+              ) : (
+                "Add Document"
+              )}
             </button>
             <button
               type="button"
@@ -462,6 +485,7 @@ function DocCard({
   onDelete: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const uploaded = isUploadedFile(doc);
 
   const handleDelete = async () => {
     if (!confirm("Delete this document?")) return;
@@ -497,10 +521,10 @@ function DocCard({
 
             {/* Actions */}
             <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              {isLocalFile(doc.file_url) ? (
+              {uploaded ? (
                 <a
-                  href={doc.file_url}
-                  download
+                  href={`/api/crm/data-room/${doc.id}/file`}
+                  download={doc.file_url}
                   className="p-1.5 rounded hover:bg-accent/10 text-muted hover:text-accent transition-colors"
                   title="Download"
                 >
@@ -552,9 +576,15 @@ function DocCard({
               <Calendar size={10} />
               {formatDate(doc.created_at)}
             </span>
-            <span className="text-[11px] text-dim truncate max-w-[180px]">
-              {isLocalFile(doc.file_url) ? "uploaded" : getDomain(doc.file_url)}
-            </span>
+            {uploaded ? (
+              <span className="text-[11px] text-dim">
+                {formatFileSize(doc.file_size!)}
+              </span>
+            ) : (
+              <span className="text-[11px] text-dim truncate max-w-[180px]">
+                {getDomain(doc.file_url)}
+              </span>
+            )}
           </div>
         </div>
       </div>

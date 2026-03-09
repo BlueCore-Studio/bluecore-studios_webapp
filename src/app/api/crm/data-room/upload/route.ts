@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { db } from "@/lib/db";
+import { dataRoomDocuments } from "@/lib/schema/crm";
 import path from "path";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "data-room");
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
+  const name = formData.get("name") as string | null;
+  const description = formData.get("description") as string | null;
+  const category = formData.get("category") as string | null;
+  const fileType = formData.get("file_type") as string | null;
+  const sharedBy = formData.get("shared_by") as string | null;
 
   if (!file) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
+  }
+
+  if (!name || !sharedBy) {
+    return NextResponse.json(
+      { error: "name and shared_by are required" },
+      { status: 400 }
+    );
   }
 
   if (file.size > MAX_FILE_SIZE) {
@@ -20,25 +32,41 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Sanitize filename: keep extension, replace unsafe chars
   const ext = path.extname(file.name);
-  const baseName = path
-    .basename(file.name, ext)
-    .replace(/[^a-zA-Z0-9_-]/g, "_")
-    .substring(0, 100);
-  const timestamp = Date.now();
-  const fileName = `${baseName}_${timestamp}${ext}`;
-
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  const detectedType = fileType || file.type || ext.replace(".", "");
 
   const bytes = await file.arrayBuffer();
-  const filePath = path.join(UPLOAD_DIR, fileName);
-  await writeFile(filePath, Buffer.from(bytes));
+  const buffer = Buffer.from(bytes);
 
-  return NextResponse.json({
-    file_url: `/data-room/${fileName}`,
-    file_name: file.name,
-    file_type: file.type || ext.replace(".", ""),
-    file_size: file.size,
-  });
+  const [doc] = await db
+    .insert(dataRoomDocuments)
+    .values({
+      name,
+      description: description || null,
+      category: (category as typeof dataRoomDocuments.category.enumValues[number]) || "other",
+      fileUrl: file.name,
+      fileType: detectedType,
+      fileData: buffer,
+      fileSize: file.size,
+      sharedBy,
+    })
+    .returning();
+
+  return NextResponse.json(
+    {
+      data: {
+        id: doc.id,
+        name: doc.name,
+        description: doc.description,
+        category: doc.category,
+        file_url: doc.fileUrl,
+        file_type: doc.fileType,
+        file_size: doc.fileSize,
+        shared_by: doc.sharedBy,
+        created_at: doc.createdAt,
+        updated_at: doc.updatedAt,
+      },
+    },
+    { status: 201 }
+  );
 }
