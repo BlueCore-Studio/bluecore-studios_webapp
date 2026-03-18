@@ -45,6 +45,14 @@ const articles: {
     tags: ["Agent Infrastructure", "Systems Engineering"],
     image: "/images/research/agent-prompt.png",
   },
+  {
+    slug: "realtime-systems-lie",
+    title: "Your Real-Time Dashboard Isn't Real-Time. It's a Confident Lie.",
+    description:
+      "Why the number on your ops dashboard can be right on average and wrong right now — and what it actually takes to build a monitoring system your team can trust when it matters.",
+    tags: ["Risk Engineering", "Data Infrastructure"],
+    image: "/images/research/realtime.png",
+  },
 ];
 
 const container = {

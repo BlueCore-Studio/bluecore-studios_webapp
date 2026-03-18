@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 // Article data - in a real app, this would come from a CMS or database
 const articles: Record<string, {
@@ -229,6 +230,71 @@ Build it in from the start. It's cheaper, it's faster, and someday someone is go
 You want to be the team that can.
     `,
   },
+  "realtime-systems-lie": {
+    slug: "realtime-systems-lie",
+    title: "Your Real-Time Dashboard Isn't Real-Time. It's a Confident Lie.",
+    description: "Why the number on your ops dashboard can be right on average and wrong right now — and what it actually takes to build a monitoring system your team can trust when it matters.",
+    tags: ["Risk Engineering", "Data Infrastructure"],
+    image: "/images/research/realtime.png",
+    author: "Bluecore Team",
+    date: "2026-03-18",
+    readTime: "16 min read",
+    content: `
+# Your Real-Time Dashboard Isn't Real-Time. It's a Confident Lie.
+
+Flink's default \`allowedLateness\` is zero. That one configuration detail is responsible for more silent data loss in production pipelines than anything else we deal with, and most teams running Flink don't know it.
+
+Here's what it means: any event that arrives after its window has already fired gets dropped. Not queued. Not flagged. Dropped, with no counter and no log entry unless you add one yourself. The dashboard keeps updating. The job is green. The aggregates are just quietly missing events, and there is no signal that this is happening.
+
+## Event Time, Processing Time, and Why the Default Is Wrong
+
+To understand why this happens you have to understand that Flink has two different models for time. Processing-time windows fire based on when the pipeline sees events. Event-time windows fire based on when events actually happened. The default is processing-time.
+
+Processing-time is easy to reason about. It's also non-deterministic — restart the pipeline and you'll get different results, because the windows depend on when events arrived at the processor, not when they occurred. If you're trying to compare output across a canary deployment, or replay history after an incident, the numbers won't align. This is a fundamental property of the model, not a bug you can configure away.
+
+Event-time processing requires watermarks. A watermark is a signal embedded in the stream that says "we believe all events with timestamp ≤ T have now arrived." Flink fires windows when the watermark passes the window boundary. There's an idle partition problem that's less obvious: watermarks are per-partition, and Flink takes the minimum across all partitions to advance the global clock. One partition with no new events holds back the watermark for the entire job. Every window stalls. No output, no error. This is in Confluent's troubleshooting guide under "why is Flink not producing results" and the fix is \`withIdleness()\` on the source operator — but you have to know to look.
+
+Back to \`allowedLateness\`. The late-arriving events that miss their window aren't visible in any default metric. A window that captured 94% of its events looks identical to one that captured 100%. The gap tends to be correlated — if a specific upstream service was under load during a spike, its events arrive late together, and those are also the events most likely to carry signal during an incident. You find out about it from a reconciliation, not from the pipeline.
+
+## The Exactly-Once Trap
+
+Kafka and Flink, properly configured, do provide exactly-once processing. This is true. It's also more limited than most people understand when they decide to rely on it.
+
+The guarantee covers the boundary between the Kafka broker and the Flink operator. When you write to an external sink — Postgres, ClickHouse, Elasticsearch, S3 — you've left the transactional boundary. Kafka's two-phase commit doesn't extend to systems that don't participate in the Kafka transaction protocol, which is most external sinks. A Flink job can produce perfectly correct, deduplicated aggregates and write them to ClickHouse, and a dashboard querying that table mid-write reads a partial result. The exactly-once guarantee ended at the write. The read is on its own.
+
+Debezium, which most teams use to stream Postgres changes into Kafka, is at-least-once by design — not a limitation they're working on. After any unclean shutdown or connector restart, it re-reads from its last saved WAL position and replays. Duplicates land in the topic. If downstream consumers are summing or accumulating state rather than upserting on event ID, those duplicates corrupt aggregates silently. We made idempotent consumers a hard requirement on every CDC-fed pipeline after running into this on a billing integration — the discovery was a reconciliation showing inflated totals, the cause was a connector restart three weeks prior, and fixing it required retrofitting deduplication across services that were already live. Going back is worse than building it in.
+
+Idempotent sinks matter more than upstream exactly-once guarantees for exactly this reason. The upstream pipeline will restart. Connectors will replay. Designing the sink to tolerate duplicates is the only part of the system you can actually hold constant.
+
+## Kafka Has Its Own Ways of Lying to You
+
+Flink gets most of the attention in these conversations, but Kafka has failure modes that are just as quiet and just as easy to miss.
+
+The consumer lag metric during a partition rebalance is the one that catches teams off guard most often. \`records-lag-max\` stops updating while the rebalance is in progress. Producers keep writing, consumers stop processing, lag is growing — and the metric is frozen at whatever it was before the rebalance started. If your alerting is built on that metric, it sees nothing. When the rebalance completes and numbers resume, the spike you see is real but it's already late — the gap opened 10, 20, 30 seconds earlier, during the window your monitoring was blind. Rebalances also tend to happen when the cluster is under enough load that a rebalance is being triggered in the first place, so the blind spot and the actual risk are correlated.
+
+The \`isolation.level\` default is a different category of problem — less about monitoring, more about correctness assumptions people don't realize they're making. Kafka's default is \`read_uncommitted\`. If a producer is using transactions, consumers will read messages that haven't been committed yet by default. Most teams that set up transactions on the producer side don't touch \`isolation.level\` on the consumer side because they don't know they need to. The result is dirty reads from a system they believe is transactional.
+
+Log compaction is the third one, and it's more situational — it only bites consumers that fall significantly behind. In a compacted topic, Kafka retains only the latest record per key. Intermediate states get deleted. A consumer that's been down for a few hours and starts replaying from its last offset won't see the intermediate values — just the final state of each key as of whenever it catches up. If the consumer's logic depends on processing transitions rather than terminal states, it processes incomplete data with no indication that anything was removed. The topic looks normal. The offsets advance. The data was just never there.
+
+## The Read Layer Has Its Own Version of This Problem
+
+The write-path problems above are the ones that show up in pipelines. The read path has a different version of the same failure.
+
+Replication lag between a primary and its read replicas is not a constant. On a quiet system it might be 10 milliseconds. During a write spike or routine replica maintenance it can be 30 seconds or more. The dashboard reading from the replica doesn't know it's behind. Nothing says "this data is 28 seconds old." It shows what it has.
+
+"Eventually consistent" means replicas converge, given no new writes, at some unspecified point. It says nothing about how long convergence takes or what a reader sees during the window. A system described as real-time that reads from an eventually-consistent store is operating on a staleness assumption it can't actually verify. Most teams, when pressed, can't tell you what their current replication lag bound is — not because they haven't looked, but because the architecture was never designed to surface it.
+
+What we push for is every projection and replica-backed view carrying an enforced staleness bound — not a cosmetic "last updated" timestamp, but an actual constraint: this view is no more than X seconds behind the write model, and if it is, it says so. Getting there usually starts with the same question: what's your current replication lag bound? Most teams don't have an answer. Once they admit that, the conversation about what to build is easier.
+
+## What Actually Gets Fixed and When
+
+When we come into a system that has these problems, the first conversation is usually about event-time processing — switching from processing-time windows, setting up proper watermarks, routing late events to a side output so you can actually see what's being excluded. That change has to go down to the schema and write path. You can't retrofit it cleanly into a running pipeline; you end up reprocessing history in a system that wasn't designed for replay, against records that may not have reliable event timestamps to begin with.
+
+The idempotent consumers, the staleness contracts, the watermark idle-source config — those are all the same conversation happening at different layers. What makes them expensive after the fact isn't the engineering, it's that the system is live, people are nervous about touching it, and the original decisions were made by people who aren't around to explain them.
+
+The usual sequence: it gets scoped, deprioritized, rescheduled. The pipeline ships. Six months later someone asks whether the aggregates can be trusted and nobody has a clean answer. At that point you're not adding correctness — you're reverse-engineering history the system never kept, in a codebase where the original context is gone.
+    `,
+  },
   "agent-prompt-architecture": {
     slug: "agent-prompt-architecture",
     title: "Your AI Agent Isn't Broken. Your Prompt Is an Instruction Manual Written in Crayon.",
@@ -405,9 +471,22 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       <article className="relative py-16 md:py-24 bg-raised">
         <div className="mx-auto max-w-3xl px-6">
           <div className="prose prose-invert prose-lg max-w-none">
-            <div className="text-body leading-relaxed whitespace-pre-line">
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => <h1 className="font-display font-bold text-3xl text-heading mt-10 mb-4">{children}</h1>,
+                h2: ({ children }) => <h2 className="font-display font-bold text-2xl text-heading mt-10 mb-4">{children}</h2>,
+                h3: ({ children }) => <h3 className="font-display font-semibold text-xl text-heading mt-8 mb-3">{children}</h3>,
+                p: ({ children }) => <p className="text-body leading-relaxed mb-6">{children}</p>,
+                strong: ({ children }) => <strong className="text-heading font-semibold">{children}</strong>,
+                code: ({ children }) => <code className="font-mono text-accent bg-accent-glow/30 px-1.5 py-0.5 rounded text-sm">{children}</code>,
+                ul: ({ children }) => <ul className="list-disc list-inside text-body mb-6 space-y-2">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside text-body mb-6 space-y-2">{children}</ol>,
+                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                blockquote: ({ children }) => <blockquote className="border-l-2 border-accent pl-6 my-6 text-body italic">{children}</blockquote>,
+              }}
+            >
               {article.content}
-            </div>
+            </ReactMarkdown>
           </div>
 
           {/* Back to Research Link */}
