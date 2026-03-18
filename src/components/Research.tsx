@@ -14,37 +14,36 @@ const articles: {
   externalUrl?: string;
 }[] = [
   {
-    slug: "compliance-airlock",
-    title: "The Compliance Airlock: Why Institutional DeFi Needs an Intelligent Middleware Layer",
+    slug: "pricing-engine-liability",
+    title: "Your Pricing Engine Isn't a System. It's a Liability.",
     description:
-      "How ML-driven compliance and risk scoring creates the bridge between open DeFi protocols and regulated institutional capital.",
-    tags: ["Compliance", "AI", "Institutions"],
-    image: "/images/research/compliance-airlock.jpg", // Placeholder path
+      "How rule-based pricing architectures silently erode margin, create compliance exposure, and become impossible to audit at scale.",
+    tags: ["Pricing Infrastructure", "Enterprise Systems"],
+    image: "/images/research/engine.png",
   },
   {
-    slug: "solana-rwa-architecture",
-    title: "Tokenizing Real-World Assets on Solana: Architecture Decisions and Tradeoffs",
+    slug: "pipeline-problem",
+    title: "You Don't Have a Data Problem. You Have a Pipeline Problem.",
     description:
-      "A technical post-mortem from the REFI2 build — Anchor program design, yield distribution mechanics, and KYC integration patterns.",
-    tags: ["Solana", "RWA", "Architecture"],
-    image: "/images/research/solana-rwa.jpg", // Placeholder path
+      "Why the reports your finance and ops teams don't trust aren't a data quality issue — they're a backend architecture issue.",
+    tags: ["Backend Architecture", "Operational Finance"],
+    image: "/images/research/pipelines.png",
   },
   {
-    slug: "merkle-tree-verification",
-    title: "Merkle Tree Verification for Onchain NAV Tracking",
+    slug: "nobody-builds-for-the-audit",
+    title: "Nobody Builds for the Audit. Then the Audit Arrives.",
     description:
-      "Deep dive into the cryptographic verification architecture that enables trustless NAV reporting for tokenized asset protocols.",
-    tags: ["Cryptography", "Verification"],
-    image: "/images/research/merkle-tree.jpg", // Placeholder path
+      "Why compliance is always the last thing teams think about and the first thing that breaks them — and what it actually costs to fix it retroactively.",
+    tags: ["Compliance Architecture", "Enterprise Infrastructure"],
+    image: "/images/research/audit.png",
   },
   {
-    slug: "multi-agent-prompting",
-    title: "Behavior, Strategy, Decision: Best Practices for Prompting Multi-Agent Systems",
+    slug: "agent-prompt-architecture",
+    title: "Your AI Agent Isn't Broken. Your Prompt Is an Instruction Manual Written in Crayon.",
     description:
-      "A practical framework for structuring prompts across multi-agent architectures — covering behavior layers, strategy delegation, and decision boundaries for production AI systems.",
-    tags: ["AI", "Multi-Agent", "Prompting"],
-    image: "/images/research/multi-agent-prompting.png",
-    externalUrl: "https://alexlazarev.medium.com/behavior-strategy-decision-best-practices-for-prompting-multi-agent-systems-5757c1ca6899",
+      "Why multi-agent systems fail in production — and what it takes to build ones that behave like software instead of guessing like interns.",
+    tags: ["Agent Infrastructure", "Systems Engineering"],
+    image: "/images/research/agent-prompt.png",
   },
 ];
 
