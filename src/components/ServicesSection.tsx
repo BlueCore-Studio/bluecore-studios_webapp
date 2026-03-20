@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { BlurFade } from "@/components/ui/BlurFade";
 
 type Audience = "enterprise" | "startup";
 
@@ -255,6 +256,7 @@ export function ServicesSection() {
 
   return (
     <section
+      id="services"
       className={`relative overflow-hidden border-y py-16 transition-colors duration-300 md:py-20 lg:py-24 ${
         isDarkMode
           ? "border-white/10 bg-navy"
@@ -307,6 +309,7 @@ export function ServicesSection() {
         aria-hidden
       />
       <Container className="relative">
+        <BlurFade>
         <div className="mx-auto max-w-2xl text-center">
           <Eyebrow className={isDarkMode ? "text-pale-blue/90" : ""}>
             Services
@@ -382,6 +385,7 @@ export function ServicesSection() {
             />
           ))}
         </div>
+        </BlurFade>
       </Container>
     </section>
   );

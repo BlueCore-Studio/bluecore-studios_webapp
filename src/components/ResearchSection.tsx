@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Section } from "@/components/ui/Section";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Container } from "@/components/ui/Container";
+import { BlurFade } from "@/components/ui/BlurFade";
 
 const RESEARCH_POSTS = [
   {
@@ -65,6 +68,7 @@ export function ResearchSection() {
       style={{ backgroundColor: "#2563EB" }}
     >
       <Container className="relative">
+        <BlurFade>
         <Eyebrow className="mb-6 text-white/80">Research</Eyebrow>
         <h2 className="text-3xl font-medium leading-[1.18] tracking-[-0.025em] text-white md:text-4xl">
           Technical Writing
@@ -77,7 +81,7 @@ export function ResearchSection() {
           {RESEARCH_POSTS.map((post) => (
             <Link
               key={post.slug}
-              href={`/research/${post.slug}`}
+              href={`/blog/${post.slug}`}
               className="group relative block overflow-hidden rounded-lg bg-white shadow-[0_2px_12px_rgba(15,30,58,0.06)] transition-shadow hover:shadow-[0_8px_24px_rgba(15,30,58,0.1)]"
             >
               <div
@@ -128,6 +132,16 @@ export function ResearchSection() {
             </Link>
           ))}
         </div>
+        <Link
+          href="/blog"
+          className="mt-12 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-white/10 px-5 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-white/20 hover:text-white"
+        >
+          View all articles
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </Link>
+        </BlurFade>
       </Container>
     </Section>
   );

@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import BluecoreHero from "@/components/BluecoreHero";
 import { PartnersSection } from "@/components/PartnersSection";
 import { ServicesSection } from "@/components/ServicesSection";
+import { ProcessSection } from "@/components/ProcessSection";
 import { StackSection } from "@/components/StackSection";
 import { ThesisSection } from "@/components/ThesisSection";
 import { CtaSection } from "@/components/CtaSection";
@@ -44,6 +45,7 @@ export function HomePageClient() {
         />
         <PartnersSection />
         <ServicesSection />
+        <ProcessSection />
         <StackSection />
         <TeamSection />
         <ThesisSection />
