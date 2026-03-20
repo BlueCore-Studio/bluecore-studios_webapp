@@ -466,4 +466,46 @@ Any time your program needs to conditionally access one of two accounts based on
 The oracle staleness issue from Mango is the one I think about most. It's where the mental model from Ethereum is most subtly wrong and the gap is hardest to notice in code review. Teams checking staleness but not the confidence interval will pass an audit, deploy to mainnet, and still be vulnerable to the exact attack vector that cost Mango $116M. The confidence interval check is the thing most teams still don't do.
     `,
   },
+  "caching-inconsistency": {
+    slug: "caching-inconsistency",
+    title: "Caching Doesn't Make Systems Faster. It Makes Them Inconsistent in Ways That Are Hard to See.",
+    description: "The race conditions, stale-write patterns, and cache warming failures that cause silent data inconsistency in production systems — and how to actually close them.",
+    tags: ["Backend Architecture", "Systems Engineering"],
+    image: "/images/research/caching.png",
+    author: "Bluecore Team",
+    date: "2024-03-10",
+    readTime: "10 min read",
+    content: `
+# Caching Doesn't Make Systems Faster. It Makes Them Inconsistent in Ways That Are Hard to See.
+
+**Tags:** Backend Architecture, Systems Engineering
+
+There's a race condition in cache-aside that's been documented since 2013 and most engineers still don't account for it. Facebook published it in their Memcache paper. Two clients, same key: client one misses the cache and reads v1 from the database. Before client one writes v1 back into cache, client two writes v2 to the database and issues a cache delete. Client one's write lands after the delete. Cache now has v1. Database has v2. The stale value sits there until something writes to that key again.
+
+The instinct is to switch to write-through — if writes always update both the database and cache, there's no window for a read to race a write. But write-through as typically implemented is: write to database, then write to cache. Two concurrent writers:
+
+\`\`\`
+T1: write v1 to database
+T2: write v2 to database
+T2: write v2 to cache
+T1: write v1 to cache
+\`\`\`
+
+Both operations returned success. The database has v2. The cache has v1. Nothing logged an error.
+
+Facebook's fix for the cache-aside version was leases. On a cache miss, Memcache issues the requesting client a token tied to that key. If a delete arrives for the key while the token is outstanding, the token is revoked. When client one tries to write v1 back, it's rejected — the cache knows a write happened and refuses to be repopulated with pre-write data. The next reader fetches fresh.
+
+Almost no caching library does this by default. Guava Cache has a documented open bug that's the direct consequence: \`cache.invalidate(key)\` doesn't cancel a concurrent in-flight load for that key. The invalidation clears the entry, the loader finishes, and the stale pre-invalidation value gets written back in. No error. No log. The symptom in production is occasional stale reads that don't reproduce reliably, which is exactly the kind of thing that gets blamed on the client or a race somewhere upstream before anyone looks at the cache layer. The bug is marked open. Caffeine, which is effectively the maintained successor for local caching, fixes this with a key-scoped lock during loads — a concurrent invalidation blocks until the load completes, then prevents the write. Different mechanism than leases but same guarantee.
+
+The distributed version of the write-through race is harder to close. In a sharded cluster, concurrent writes to the same key can hit different nodes. Those nodes replicate asynchronously. Replication order doesn't have to match write order. "Last write wins" in the cache is not the same as "last commit wins" in the database, and there's nothing in a standard distributed cache that reconciles this.
+
+Thundering herd is less interesting to me because it's more widely understood, but the part that usually gets left out is the feedback loop. Hot key expires, all concurrent requests miss simultaneously, each queries the database independently. Database load slows queries down. Slower queries mean more requests stay in flight at any given moment. More in-flight requests means more load. It doesn't stabilize; it amplifies. The standard mitigations: TTL jitter to prevent synchronized expiry across batch-loaded keys, request coalescing (\`golang.org/x/sync/singleflight\` within a process, Redis lock plus pub/sub notification across a fleet) so only one caller does the database fetch per miss. XFetch is worth knowing about — it recomputes a key before expiry with probability that increases as expiry approaches, scaled by how long recomputation takes (\`current_time - (delta × beta × ln(rand())) >= expiry_time\`). Production beta is typically 1.5 rather than the theoretical 1.0. None of these are complete solutions by themselves; the coalescing stuff does the most work if you're running a real fleet.
+
+The warming problem I'd put closer to the write-through race in terms of being underestimated. Pre-seeding from a database snapshot means every key reflects database state at snapshot time, not deployment time. Any write between snapshot and deployment isn't in cache. The inconsistency window runs until invalidation events catch up, not until TTL expiry. In a write-heavy system that's minutes of confidently-wrong values.
+
+The rolling deployment version of this is the one I've seen cause the most confusion. During a rolling restart, old instances have warm caches reflecting pre-deploy state and new instances have cold ones. Traffic hits both. The same key returns different values depending on which instance handles the request — not a bug, just two instances with different cache states. This shows up as a value that flips between two states on consecutive requests, which gets diagnosed as a race condition or client-side caching and usually takes longer than it should to trace back to the deployment because the symptom looks like concurrency.
+
+In-process caches make the per-server invalidation problem worse. A cache invalidation on one server doesn't propagate to any other server. The standard fix — pub/sub backplane, Redis, all nodes subscribe, invalidations evict locally — works until the backplane degrades, at which point invalidation events are silently dropped and every node keeps its stale values with no visible indication consistency has degraded. Hit rates look fine. Error rates look fine. Meta published a post-mortem in 2022 on a case where cache entries were surviving writes because a bug in the invalidation error handler was rejecting valid invalidations on a version-matching edge case. Detecting it required Polaris, a service that continuously samples cache and database values and measures divergence directly. If you're running in-process caches with a backplane and treating backplane health as a proxy for cache consistency, that's not the same measurement.
+    `,
+  },
 };
