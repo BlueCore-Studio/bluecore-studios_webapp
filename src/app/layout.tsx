@@ -26,19 +26,19 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://bluecorestudio.com"),
   title: {
-    default: "Bluecore Studios — Web3 Infrastructure & AI Solutions",
+    default: "Bluecore Studios — Engineering for Ambitious Products",
     template: "%s | Bluecore Studios",
   },
   description:
-    "We build DeFi protocols, AI-powered risk systems, and the compliance middleware that connects them to institutional capital.",
+    "We design and build production-grade software — from AI systems and financial infrastructure to complex backends and data pipelines.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     siteName: "Bluecore Studios",
-    title: "Bluecore Studios — Web3 Infrastructure & AI Solutions",
+    title: "Bluecore Studios — Engineering for Ambitious Products",
     description:
-      "Infrastructure for the Onchain Intelligence Era. DeFi protocols, AI agents, and compliance middleware.",
+      "A modern dev shop that ships. AI systems, financial infrastructure, complex backends — built to production standard.",
     type: "website",
     url: "https://bluecorestudio.com",
     images: [
@@ -52,9 +52,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bluecore Studios — Web3 Infrastructure & AI Solutions",
+    title: "Bluecore Studios — Engineering for Ambitious Products",
     description:
-      "Infrastructure for the Onchain Intelligence Era. DeFi protocols, AI agents, and compliance middleware.",
+      "A modern dev shop that ships. AI systems, financial infrastructure, complex backends — built to production standard.",
     images: ["/api/og"],
   },
 };

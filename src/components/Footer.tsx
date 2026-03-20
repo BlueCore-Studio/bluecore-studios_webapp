@@ -1,78 +1,58 @@
-import { Github, Twitter } from "lucide-react";
+import Link from "next/link";
+import { Container } from "@/components/ui/Container";
 
-const footerLinks = [
-  { label: "Services", href: "#services" },
-  { label: "Work", href: "#work" },
-  { label: "Thesis", href: "#thesis" },
-  { label: "Approach", href: "#approach" },
-  { label: "Stack", href: "#stack" },
-  { label: "Team", href: "#team" },
-  { label: "Research", href: "#research" },
-  { label: "Contact", href: "#contact" },
-];
-
-export default function Footer() {
+export function Footer() {
   return (
-    <footer className="border-t border-edge bg-surface">
-      <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="flex flex-col lg:flex-row items-start justify-between gap-12">
-          {/* Brand */}
-          <div className="max-w-xs">
-            <a
-              href="#"
-              className="font-display font-bold text-xl tracking-tight text-heading"
-            >
-              BLUECORE<span className="text-accent">.</span>
-            </a>
-            <p className="mt-4 text-sm text-muted leading-relaxed">
-              Web3 infrastructure and AI solutions for protocol founders and
-              institutional clients.
+    <footer className="border-t border-gray/15 bg-deep-navy py-18 md:py-22">
+      <Container>
+        <div className="flex flex-col gap-16 md:flex-row md:items-start md:justify-between md:gap-24">
+          <div className="max-w-sm">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-soft-white">
+              Bluecore
+            </span>
+            <p className="mt-5 text-[15px] leading-[1.65] text-gray">
+              Bluecore designs and builds modern digital experiences with
+              clarity, structure, and precision.
             </p>
-            <div className="mt-6 flex items-center gap-4">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted hover:text-heading transition-colors"
-                aria-label="GitHub"
-              >
-                <Github size={18} />
-              </a>
-              <a
-                href="https://x.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted hover:text-heading transition-colors"
-                aria-label="X / Twitter"
-              >
-                <Twitter size={18} />
-              </a>
+          </div>
+          <nav className="flex gap-16">
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-steel-blue">
+                Navigate
+              </h4>
+              <ul className="mt-4 space-y-3">
+                <li>
+                  <Link
+                    href="#services"
+                    className="text-[14px] text-gray hover:text-soft-white transition-colors"
+                  >
+                    Services
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#process"
+                    className="text-[14px] text-gray hover:text-soft-white transition-colors"
+                  >
+                    Process
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#contact"
+                    className="text-[14px] text-gray hover:text-soft-white transition-colors"
+                  >
+                    Contact
+                  </Link>
+                </li>
+              </ul>
             </div>
-          </div>
-
-          {/* Links */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-12 gap-y-4">
-            {footerLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-sm text-muted hover:text-heading transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
+          </nav>
         </div>
-
-        <div className="section-divider mt-12 mb-8" />
-
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-dim">
-          <span>&copy; {new Date().getFullYear()} Bluecore Studios. All rights reserved.</span>
-          <span className="font-mono tracking-wide">
-            Built with conviction, shipped with precision.
-          </span>
+        <div className="mt-16 border-t border-gray/15 pt-8 text-[13px] text-gray">
+          © {new Date().getFullYear()} Bluecore. All rights reserved.
         </div>
-      </div>
+      </Container>
     </footer>
   );
 }

@@ -96,7 +96,7 @@ export async function GET(req: Request) {
                 marginBottom: "16px",
               }}
             >
-              Infrastructure for the Onchain Intelligence Era.
+              Engineering for Ambitious Products.
             </span>
             <span
               style={{
@@ -106,7 +106,7 @@ export async function GET(req: Request) {
                 maxWidth: "780px",
               }}
             >
-              DeFi protocols, AI-powered risk systems, and the compliance middleware that connects them to institutional capital.
+              AI systems, financial infrastructure, complex backends — built to production standard by a modern dev shop.
             </span>
           </div>
         </div>

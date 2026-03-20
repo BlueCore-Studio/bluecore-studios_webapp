@@ -94,7 +94,7 @@ export default function Contact() {
   return (
     <section 
       ref={sectionRef}
-      id="contact" 
+      id="contact-form"
       className="relative pt-28 md:pt-36 pb-20 md:pb-24 bg-raised overflow-hidden"
     >
       {/* Background image with parallax */}
@@ -240,7 +240,9 @@ export default function Contact() {
                     </div>
                     <div className="mt-6">
                       <a
-                        href="#"
+                        href="https://calendly.com/dev-bluecorestudio/30min"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="cursor-pointer inline-flex items-center gap-2 px-6 py-3.5 text-sm font-semibold text-white bg-accent rounded-lg hover:bg-accent/85 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent/50"
                       >
                         Book a Call
