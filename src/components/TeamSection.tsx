@@ -1,6 +1,5 @@
 "use client";
 
-import { Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
@@ -53,18 +52,11 @@ const GRID_LAYOUT: { type: "svg" | "person"; src?: string; key?: string }[][] = 
   ],
 ];
 
-// Mobile: 2 cols × 3 rows — person | tile per row (swap: tile left, person right for Alex)
-const MOBILE_LAYOUT: { person: string; svg: string; swap?: boolean }[] = [
-  { person: "2-0", svg: "/team/teamSVG2.svg" },
-  { person: "1-1", svg: "/team/teamSVG6.svg", swap: true },
-  { person: "3-1", svg: "/team/teamSVG3.svg" },
-];
-
 function SvgTile({ src }: { src: string }) {
   return (
     <div
       className="relative w-full overflow-hidden bg-white m-0 p-0"
-      style={{ aspectRatio: "1 / 0.84" }}
+      style={{ aspectRatio: "1 / 0.85" }}
     >
       <Image
         src={src}
@@ -111,23 +103,18 @@ function PersonTile({
       target="_blank"
       rel="noopener noreferrer"
       className="group relative block w-full overflow-hidden bg-white m-0 p-0"
-      style={{ aspectRatio: "1 / 0.84" }}
+      style={{ aspectRatio: "1 / 0.85" }}
     >
       <Image
         src={image}
         alt={name}
         fill
-        className="object-cover grayscale md:transition-transform md:duration-500 md:group-hover:scale-105 md:group-hover:grayscale-0"
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
         style={{ objectPosition }}
         sizes="(max-width: 1280px) 20vw, 256px"
       />
-      {/* Mobile: small LinkedIn icon always visible in corner */}
-      <span className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#0A66C2] shadow-sm md:hidden">
-        <LinkedInIcon className="h-5 w-5" />
-      </span>
-      {/* Desktop: full overlay on hover (no hover on mobile) */}
       <div className="absolute inset-0 bg-[#2563EB]/70 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <div className="absolute inset-0 hidden flex-col items-center justify-center gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 md:flex">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <span className="text-lg font-semibold tracking-[-0.02em] text-white">
           {name}
         </span>
@@ -149,10 +136,10 @@ export function TeamSection() {
       className="relative overflow-hidden pt-16 pb-0 md:pt-20 md:pb-0 lg:pt-24 lg:pb-0"
       style={{ backgroundColor: "#2563EB" }}
     >
-      {/* Overlapping triangles - upper left (hidden on mobile) */}
+      {/* Overlapping triangles - upper left */}
       <div
         aria-hidden
-        className="absolute left-0 top-0 hidden h-64 w-64 opacity-[0.35] md:block"
+        className="absolute left-0 top-0 h-64 w-64 opacity-[0.35]"
         style={{
           background: "white",
           clipPath: "polygon(0 0, 100% 0, 0 100%)",
@@ -160,7 +147,7 @@ export function TeamSection() {
       />
       <div
         aria-hidden
-        className="absolute left-8 top-8 hidden h-48 w-48 opacity-[0.18] md:block"
+        className="absolute left-8 top-8 h-48 w-48 opacity-[0.18]"
         style={{
           background: "white",
           clipPath: "polygon(0 0, 100% 0, 0 100%)",
@@ -180,7 +167,7 @@ export function TeamSection() {
               with a desire to shape the future of decentralized systems, hit us up.
             </p>
             <Link href="#contact" className="mt-8 inline-block">
-              <Button variant="light" size="sm">
+              <Button variant="primary" size="sm">
                 Join our team
               </Button>
             </Link>
@@ -188,10 +175,10 @@ export function TeamSection() {
         </Container>
         {/* Spacer — extends header area so shapes can sit at top of grid */}
         <div className="h-12 md:h-16" />
-        {/* Decorative geometric motif — aligns with button on mobile, right side on desktop */}
+        {/* Decorative geometric motif — pinned to top of team grid, right side */}
         <div
           aria-hidden
-          className="pointer-events-none absolute right-6 top-[calc(100%-4rem)] flex items-center gap-3 md:bottom-8 md:right-16 md:top-auto md:items-end md:gap-5"
+          className="pointer-events-none absolute bottom-6 right-12 flex items-end gap-4 md:bottom-8 md:right-16 md:gap-5"
         >
           <div className="h-10 w-10 shrink-0 rounded-full bg-white md:h-14 md:w-14" />
           <div className="h-10 w-10 shrink-0 bg-white md:h-14 md:w-14" />
@@ -201,39 +188,8 @@ export function TeamSection() {
           />
         </div>
       </div>
-      {/* Mobile: 2 cols × 3 rows — person | tile per row (swap: tile left, person right for Alex) */}
-      <div className="grid w-full grid-cols-2 gap-0 p-0 m-0 md:hidden">
-        {MOBILE_LAYOUT.map((row, i) => (
-          <Fragment key={i}>
-            {row.swap ? (
-              <>
-                <SvgTile src={row.svg} />
-                <PersonTile
-                  name={TEAM_MEMBERS[row.person].name}
-                  role={TEAM_MEMBERS[row.person].role}
-                  image={TEAM_MEMBERS[row.person].image}
-                  linkedin={TEAM_MEMBERS[row.person].linkedin}
-                  objectPosition={TEAM_MEMBERS[row.person].objectPosition}
-                />
-              </>
-            ) : (
-              <>
-                <PersonTile
-                  name={TEAM_MEMBERS[row.person].name}
-                  role={TEAM_MEMBERS[row.person].role}
-                  image={TEAM_MEMBERS[row.person].image}
-                  linkedin={TEAM_MEMBERS[row.person].linkedin}
-                  objectPosition={TEAM_MEMBERS[row.person].objectPosition}
-                />
-                <SvgTile src={row.svg} />
-              </>
-            )}
-          </Fragment>
-        ))}
-      </div>
-      {/* Desktop: original 5×2 grid */}
       <div
-        className="hidden w-full grid-cols-5 gap-0 p-0 m-0 md:grid"
+        className="grid w-full grid-cols-5 gap-0 p-0 m-0"
         style={{ gridTemplateRows: "auto auto" }}
       >
         {GRID_LAYOUT.flat().map((cell) =>

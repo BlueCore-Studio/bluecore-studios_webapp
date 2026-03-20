@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 
 interface BluecoreHeroProps {
   colorIndex: number;
@@ -59,11 +59,11 @@ export default function BluecoreHero({
         />
       </div>
 
-      <div className="relative flex min-h-[70vh] flex-col items-center justify-center gap-12 px-6 py-16 sm:min-h-[75vh] sm:items-start sm:px-8 sm:py-20 md:min-h-[80vh] md:gap-16 md:py-24 lg:min-h-[88vh] lg:flex-row lg:items-center lg:px-14 lg:-translate-y-[30px]">
-        <div className="w-full max-w-[480px] shrink-0 sm:ml-0 lg:ml-[12%]">
-          <div className="flex items-baseline justify-center gap-2 sm:justify-start">
+      <div className="relative flex min-h-[88vh] -translate-y-[30px] items-center gap-16 px-8 py-24 lg:px-14">
+        <div className="ml-[8%] max-w-[480px] shrink-0 lg:ml-[12%]">
+          <div className="flex items-baseline gap-2">
             <h1
-              className={`text-[40px] font-extrabold leading-none tracking-[-0.04em] sm:text-[52px] md:text-[60px] lg:text-[72px] ${textClass}`}
+              className={`text-[60px] font-extrabold leading-none tracking-[-0.04em] md:text-[72px] ${textClass}`}
             >
               BLUECORE
             </h1>
@@ -88,32 +88,24 @@ export default function BluecoreHero({
             to every project.
           </p>
 
-          <div className="mt-8 flex flex-row flex-wrap items-center justify-start gap-3 sm:mt-10 sm:gap-4">
-            <Link
-              href="https://calendly.com/dev-bluecorestudio/30min"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`inline-flex h-9 items-center justify-center rounded-sm px-4 text-[13px] font-medium tracking-[0.02em] shadow-md transition-shadow hover:shadow-lg ${
-                isLightBg
-                  ? "bg-navy text-soft-white hover:bg-deep-navy border border-navy"
-                  : "bg-soft-white text-navy hover:bg-pale-blue border border-soft-white/30"
-              }`}
+          <div className="mt-10 flex items-center gap-4">
+            <Button
+              variant={isLightBg ? "primary" : "light"}
+              size="sm"
+              className="h-9 px-4 shadow-md hover:shadow-lg transition-shadow"
             >
               Book a Call
-            </Link>
-            <Link
-              href="#services"
-              className={`inline-flex h-9 items-center justify-center rounded-sm px-4 text-[13px] font-medium tracking-[0.02em] shadow-md transition-shadow hover:shadow-lg ${
-                isLightBg
-                  ? "border border-gray/25 text-text-dark hover:border-steel-blue/40 hover:text-navy"
-                  : "bg-soft-white text-navy hover:bg-pale-blue border border-soft-white/30"
-              }`}
+            </Button>
+            <Button
+              variant={isLightBg ? "outline" : "light"}
+              size="sm"
+              className="h-9 px-4 shadow-md hover:shadow-lg transition-shadow"
             >
               Learn More
-            </Link>
+            </Button>
           </div>
         </div>
-        <div className="relative hidden shrink-0 lg:ml-auto lg:mr-[14%] lg:block">
+        <div className="relative ml-auto mr-[14%] hidden shrink-0 lg:block">
           <div className="relative h-[455px] w-[560px]">
             {[
               "/Group1.svg",

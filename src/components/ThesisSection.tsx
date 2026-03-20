@@ -111,7 +111,7 @@ function WordReveal({
 /* ------------------------------------------------------------------ */
 export function ThesisSection() {
   return (
-    <section className="relative w-full overflow-x-hidden bg-navy py-12 md:py-24 lg:py-32">
+    <section className="relative w-full overflow-hidden bg-navy py-24 lg:py-32">
       <AnimStyles />
 
       {/* ── WebGL Celestial Sphere background ────────────────────── */}
@@ -153,13 +153,13 @@ export function ThesisSection() {
           {/* Word-by-word headline */}
           <WordReveal
             text="Where Critical Systems Meet Uncompromising Engineering"
-            className="mb-10 max-w-5xl font-display text-2xl font-bold leading-[1.1] tracking-tight text-white sm:text-3xl md:mb-20 md:text-5xl md:leading-[0.95] lg:text-6xl xl:text-7xl"
+            className="mb-20 max-w-5xl font-display text-5xl font-bold leading-[0.95] tracking-tight text-white md:text-6xl lg:text-7xl"
           />
 
           {/* Two-column thesis text */}
           <BlurFade delay={0.15}>
-            <div className="mb-12 grid gap-6 md:mb-24 md:grid-cols-2 md:gap-12">
-              <p className="font-body text-base font-light leading-relaxed text-pale-blue/70 md:col-span-2 md:text-lg">
+            <div className="mb-24 grid gap-10 md:grid-cols-2 md:gap-12">
+              <p className="font-body text-lg font-light leading-relaxed text-pale-blue/70 md:col-span-2">
                 The infrastructure that moves capital, prices risk, and enforces
                 compliance at scale isn&apos;t going to be built by bloated
                 teams on 18-month timelines. It&apos;ll be built by small,
@@ -167,14 +167,14 @@ export function ThesisSection() {
                 of code like someone&apos;s money depends on it. Because it
                 does.
               </p>
-              <p className="font-body text-base font-light leading-relaxed text-pale-blue/70 md:text-lg">
+              <p className="font-body text-lg font-light leading-relaxed text-pale-blue/70">
                 Most teams split into two camps. You either build enterprise
                 systems with legacy tooling and governance-by-committee, or you
                 build protocol infrastructure fast and figure out security later.
                 Both leave value on the table. One is too slow to matter. The
                 other is too fragile to trust.
               </p>
-              <p className="font-body text-base font-light leading-relaxed text-pale-blue/70 md:text-lg">
+              <p className="font-body text-lg font-light leading-relaxed text-pale-blue/70">
                 We reject that tradeoff. Pricing engines, protocol middleware,
                 compliance infrastructure — same philosophy across the board.
                 Audit-ready from sprint one, not sprint last. Deterministic where
@@ -185,7 +185,7 @@ export function ThesisSection() {
 
           {/* Pull quote with animated gradient border */}
           <BlurFade delay={0.2}>
-            <div className="relative my-12 overflow-hidden rounded-lg md:my-20">
+            <div className="relative my-20 overflow-hidden rounded-lg">
               {/* Animated gradient border */}
               <div
                 className="absolute inset-0 rounded-lg"
@@ -201,15 +201,15 @@ export function ThesisSection() {
                   maskComposite: "exclude",
                 }}
               />
-              <div className="relative bg-navy/80 py-8 pl-6 pr-6 backdrop-blur-md md:py-12 md:pl-16 md:pr-16">
+              <div className="relative bg-navy/80 py-12 pl-8 pr-8 backdrop-blur-md md:pl-16 md:pr-16">
                 {/* Pulsing quote mark */}
                 <div
-                  className="absolute left-4 top-2 font-display text-4xl text-pale-blue md:left-8 md:top-4 md:text-6xl"
+                  className="absolute left-8 top-4 font-display text-6xl text-pale-blue"
                   style={{ animation: "pulse-glow 3s ease-in-out infinite" }}
                 >
                   &ldquo;
                 </div>
-                <blockquote className="max-w-4xl font-display text-lg font-bold leading-tight text-white sm:text-xl md:text-3xl lg:text-4xl">
+                <blockquote className="max-w-4xl font-display text-2xl font-bold leading-tight text-white md:text-3xl lg:text-4xl">
                   If your system can&apos;t survive an audit, you don&apos;t
                   have a product. You have a demo.{" "}
                   <span className="text-pale-blue">
@@ -222,7 +222,7 @@ export function ThesisSection() {
 
           {/* Closing paragraph */}
           <BlurFade delay={0.25}>
-            <p className="mx-auto mb-12 max-w-3xl text-center font-body text-base font-light leading-relaxed text-pale-blue/70 md:mb-24 md:text-lg">
+            <p className="mx-auto mb-24 max-w-3xl text-center font-body text-lg font-light leading-relaxed text-pale-blue/70">
               The teams that understand both the enterprise stack and the
               protocol layer — that can move between a Go monorepo and a Solana
               program without blinking — are the ones that will actually build

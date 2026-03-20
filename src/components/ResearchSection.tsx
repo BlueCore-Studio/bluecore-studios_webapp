@@ -22,7 +22,7 @@ const RESEARCH_POSTS = [
     image: "/articles/pipelines.jpg",
   },
   {
-    slug: "nobody-builds-for-the-audit",
+    slug: "nobody-builds-for-audit",
     tags: ["Compliance Architecture", "Enterprise Infrastructure"],
     title: "Nobody Builds for the Audit. Then the Audit Arrives.",
     description:
@@ -30,7 +30,7 @@ const RESEARCH_POSTS = [
     image: "/articles/audit.jpg",
   },
   {
-    slug: "agent-prompt-architecture",
+    slug: "agent-prompt-crayon",
     tags: ["Agent Infrastructure", "Systems Engineering"],
     title:
       "Your AI Agent Isn't Broken. Your Prompt Is an Instruction Manual Written in Crayon.",
@@ -39,7 +39,7 @@ const RESEARCH_POSTS = [
     image: "/articles/agent-prompt.jpg",
   },
   {
-    slug: "solana-account-model-evm",
+    slug: "evm-solana-account-model",
     tags: ["DeFi Infrastructure", "Protocol Design"],
     title: "EVM Developers on Solana: What the Account Model Actually Changes",
     description:
@@ -47,7 +47,7 @@ const RESEARCH_POSTS = [
     image: "/articles/evm_to_solana.jpg",
   },
   {
-    slug: "realtime-systems-lie",
+    slug: "realtime-dashboard-lie",
     tags: ["Risk Engineering", "Data Infrastructure"],
     title: "Your Real-Time Dashboard Isn't Real-Time. It's a Confident Lie.",
     description:

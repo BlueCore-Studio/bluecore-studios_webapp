@@ -18,26 +18,21 @@ const PARTNER_LOGOS = [
 function MarqueeContent() {
   return (
     <>
-      {PARTNER_LOGOS.map((logo, i) => {
-        const isResend = logo.alt === "Resend";
-        return (
-          <div
-            key={i}
-            className={`relative flex shrink-0 items-center justify-center opacity-90 transition-opacity hover:opacity-100 ${
-              isResend ? "h-14 w-32" : "h-10 w-24"
-            }`}
-          >
-            <Image
-              src={logo.src}
-              alt={logo.alt}
-              width={isResend ? 128 : 96}
-              height={isResend ? 56 : 40}
-              className="object-contain"
-              sizes={isResend ? "128px" : "96px"}
-            />
-          </div>
-        );
-      })}
+      {PARTNER_LOGOS.map((logo, i) => (
+        <div
+          key={i}
+          className="relative flex h-10 w-24 shrink-0 items-center justify-center opacity-90 transition-opacity hover:opacity-100"
+        >
+          <Image
+            src={logo.src}
+            alt={logo.alt}
+            width={96}
+            height={40}
+            className="object-contain"
+            sizes="96px"
+          />
+        </div>
+      ))}
     </>
   );
 }

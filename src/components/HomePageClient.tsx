@@ -5,14 +5,12 @@ import { Navbar } from "@/components/Navbar";
 import BluecoreHero from "@/components/BluecoreHero";
 import { PartnersSection } from "@/components/PartnersSection";
 import { ServicesSection } from "@/components/ServicesSection";
-import { ProcessSection } from "@/components/ProcessSection";
 import { StackSection } from "@/components/StackSection";
 import { ThesisSection } from "@/components/ThesisSection";
 import { CtaSection } from "@/components/CtaSection";
 import { TeamSection } from "@/components/TeamSection";
 import { ResearchSection } from "@/components/ResearchSection";
 import { Footer } from "@/components/Footer";
-import Contact from "@/components/Contact";
 
 const HERO_COLORS = [
   "#2563EB", // primary-blue
@@ -46,13 +44,11 @@ export function HomePageClient() {
         />
         <PartnersSection />
         <ServicesSection />
-        <ProcessSection />
         <StackSection />
         <TeamSection />
         <ThesisSection />
         <ResearchSection />
         <CtaSection />
-        <Contact />
       </main>
       <Footer />
     </>

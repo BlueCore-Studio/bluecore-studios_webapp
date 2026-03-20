@@ -255,7 +255,6 @@ export function ServicesSection() {
 
   return (
     <section
-      id="services"
       className={`relative overflow-hidden border-y py-16 transition-colors duration-300 md:py-20 lg:py-24 ${
         isDarkMode
           ? "border-white/10 bg-navy"
@@ -309,13 +308,21 @@ export function ServicesSection() {
       />
       <Container className="relative">
         <div className="mx-auto max-w-2xl text-center">
-          <Eyebrow className="text-pale-blue/90">
+          <Eyebrow className={isDarkMode ? "text-pale-blue/90" : ""}>
             Services
           </Eyebrow>
-          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl text-white">
+          <h2
+            className={`mt-2 text-2xl font-semibold sm:text-3xl ${
+              isDarkMode ? "text-white" : "text-text-dark"
+            }`}
+          >
             What We Build
           </h2>
-          <p className="mt-3 text-white/80">
+          <p
+            className={`mt-3 ${
+              isDarkMode ? "text-white/80" : "text-gray"
+            }`}
+          >
             Same team, same skills — two different front doors. Pick the lens
             that fits your world.
           </p>
