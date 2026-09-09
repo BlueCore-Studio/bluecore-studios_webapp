@@ -6,58 +6,14 @@ import { Section } from "@/components/ui/Section";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Container } from "@/components/ui/Container";
 import { BlurFade } from "@/components/ui/BlurFade";
+import { BLOG_POSTS, BLOG_SLUGS } from "@/data/blog-posts";
 
-const RESEARCH_POSTS = [
-  {
-    slug: "pricing-engine-liability",
-    tags: ["Pricing Infrastructure", "Enterprise Systems"],
-    title: "Your Pricing Engine Isn't a System. It's a Liability.",
-    description:
-      "How rule-based pricing architectures silently erode margin, create compliance exposure, and become impossible to audit at scale.",
-    image: "/articles/engine.jpg",
-  },
-  {
-    slug: "pipeline-problem",
-    tags: ["Backend Architecture", "Operational Finance"],
-    title: "You Don't Have a Data Problem. You Have a Pipeline Problem.",
-    description:
-      "Why the reports your finance and ops teams don't trust aren't a data quality issue — they're a backend architecture issue.",
-    image: "/articles/pipelines.jpg",
-  },
-  {
-    slug: "nobody-builds-for-audit",
-    tags: ["Compliance Architecture", "Enterprise Infrastructure"],
-    title: "Nobody Builds for the Audit. Then the Audit Arrives.",
-    description:
-      "Why compliance is always the last thing teams think about and the first thing that breaks them — and what it actually costs to fix it retroactively.",
-    image: "/articles/audit.jpg",
-  },
-  {
-    slug: "agent-prompt-crayon",
-    tags: ["Agent Infrastructure", "Systems Engineering"],
-    title:
-      "Your AI Agent Isn't Broken. Your Prompt Is an Instruction Manual Written in Crayon.",
-    description:
-      "Why multi-agent systems fail in production — and what it takes to build ones that behave like software instead of guessing like interns.",
-    image: "/articles/agent-prompt.jpg",
-  },
-  {
-    slug: "evm-solana-account-model",
-    tags: ["DeFi Infrastructure", "Protocol Design"],
-    title: "EVM Developers on Solana: What the Account Model Actually Changes",
-    description:
-      "Most EVM-to-Solana comparisons stop at TPS and gas costs. The architectural difference that actually matters is that EVM contracts own their state and Solana programs don't.",
-    image: "/articles/evm_to_solana.jpg",
-  },
-  {
-    slug: "realtime-dashboard-lie",
-    tags: ["Risk Engineering", "Data Infrastructure"],
-    title: "Your Real-Time Dashboard Isn't Real-Time. It's a Confident Lie.",
-    description:
-      "Why the number on your ops dashboard can be right on average and wrong right now — and what it actually takes to build a monitoring system your team can trust when it matters.",
-    image: "/articles/realtime.jpg",
-  },
-];
+// Newest first, capped for the homepage. Full list lives at /blog.
+const HOMEPAGE_POST_LIMIT = 6;
+
+const RESEARCH_POSTS = BLOG_SLUGS.map((slug) => ({ slug, ...BLOG_POSTS[slug] }))
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  .slice(0, HOMEPAGE_POST_LIMIT);
 
 export function ResearchSection() {
   return (

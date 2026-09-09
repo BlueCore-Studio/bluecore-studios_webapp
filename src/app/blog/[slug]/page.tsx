@@ -121,6 +121,16 @@ export default function BlogPostPage() {
                 em: ({ children }) => (
                   <em className="text-gray">{children}</em>
                 ),
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary-blue underline underline-offset-2 transition-colors hover:text-navy"
+                  >
+                    {children}
+                  </a>
+                ),
                 code: ({ children }) => (
                   <code className="rounded bg-pale-blue/40 px-1.5 py-0.5 font-mono text-sm text-navy">
                     {children}
