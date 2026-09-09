@@ -413,6 +413,693 @@ The idempotent consumers, the staleness contracts, the watermark idle-source con
 
 The usual sequence: it gets scoped, deprioritized, rescheduled. The pipeline ships. Six months later someone asks whether the aggregates can be trusted and nobody has a clean answer. At that point you're not adding correctness — you're reverse-engineering history the system never kept, in a codebase where the original context is gone.`,
   },
+  "erc-8226-regulated-agent-mandate": {
+    title:
+      "We Implemented ERC-8226 Against the Reference Deployment. Here’s What Broke.",
+    description:
+      "A production-minded integration of ERC-8226 that put regulated agent mandates through real Sepolia transactions, exposed ambiguous failure states, revocation edge cases, and KYC expiry gaps, and turned those findings into concrete changes to the emerging standard.",
+    tags: ["Agent Infrastructure", "Compliance Architecture"],
+    image: "/articles/erc-8226.webp",
+    author: "Alex Lazarev",
+    date: "2026-08-14",
+    readTime: "11 min read",
+    content: `*Originally published on [Ethereum Magicians](https://ethereum-magicians.org/t/erc-8226-regulated-agent-mandate/28208/14).*
+
+Standards look cleanest before somebody integrates them.
+
+ERC-8226, the Regulated Agent Mandate standard, defines a way for a principal to authorize an agent to act against a regulated asset subject to explicit permissions, limits, expiry, revocation, and compliance checks.
+
+On paper, the model is straightforward.
+
+A principal grants a mandate. An agent presents it. The registry evaluates whether the action is allowed. The asset executes or rejects it.
+
+We wanted to know what that actually felt like from the asset side.
+
+So rather than review the interface in isolation, we implemented it.
+
+## We Started From the Published Standard, Not the Reference Code
+
+We built our token-side integration from the published ERC-8226 specification without coordinating with the authors first.
+
+The goal was deliberate: approach the standard the way an outside protocol team would.
+
+The integration went live on Ethereum Sepolia against the reference AgentMandate deployment.
+
+We deployed three components.
+
+\`GatedUSDRams\` is a RAMS-aware ERC-20 that gates agent-initiated transfers through ERC-8226.
+
+\`VARComplianceProviderAdapter\` implements the compliance-provider interface used by the mandate registry.
+
+\`DelegationMirror\` is the delegation registry the adapter reads when determining whether the principal and agent relationship is valid.
+
+The point was not to build another demo.
+
+The point was to see whether an unrelated asset could consume the standard, execute through it, fail through it, and explain those failures without private knowledge of the reference implementation.
+
+That last requirement turned out to matter.
+
+## The Happy Path Worked
+
+We granted a mandate through the reference AgentMandate contract with our adapter configured as its compliance provider.
+
+An agent then initiated a \`transferFrom\` through our token.
+
+It cleared.
+
+The registry recorded the execution and increased the mandate's cumulative usage.
+
+We then deliberately attempted another transfer that exceeded the transaction cap.
+
+That one failed.
+
+The important part was everything around the failure.
+
+The blocked transaction did not alter the destination balance. The mandate's cumulative usage did not advance. The state therefore behaved atomically: either the regulated action executed and was recorded, or neither happened.
+
+That is what we wanted to see.
+
+We also reconstructed the reference implementation using the deployment toolchain and compared the resulting runtime bytecode with the contracts actually deployed to Sepolia.
+
+Apart from the metadata tail, they matched.
+
+So the behavior we were exercising was not an approximation of the reference deployment. It was the reference behavior.
+
+And importantly, we found no contract vulnerability in that implementation.
+
+The interesting findings were at the integration boundary.
+
+## \`false\` Is Not Enough Information for an Agent
+
+ERC-8226's \`canExecute\` decision ultimately collapses multiple failure conditions into a boolean.
+
+Allowed or not allowed.
+
+That sounds reasonable until the caller is autonomous software.
+
+Consider what \`false\` can mean.
+
+The mandate may have expired.
+
+The principal's compliance status may no longer be valid.
+
+The requested transaction may exceed a per-transaction cap.
+
+The mandate may have exhausted a cumulative allowance.
+
+The mandate may have been revoked.
+
+The caller may be using the wrong asset.
+
+There may be no mandate at all.
+
+These conditions require completely different responses.
+
+An agent faced with an exceeded transaction cap might reduce the amount and retry.
+
+An expired mandate requires a new authorization.
+
+A revoked mandate should normally stop.
+
+A temporary compliance condition may require waiting.
+
+A malformed call is an implementation bug.
+
+Returning the same boolean for all of them forces the integrator to reconstruct information the registry already possesses.
+
+That is exactly what we ended up doing.
+
+## We Had to Reimplement the Registry's Decision Tree
+
+Our token exposes a diagnostic path that walks through the registry checks and determines which condition failed.
+
+That let the blocked transfer return a reason equivalent to \`RAMS_OVER_TX_CAP\`.
+
+It worked.
+
+It is also the wrong abstraction.
+
+To produce that diagnosis, the integration has to retrieve the mandate and reproduce the registry's validation order. On a revert path that can require several additional external reads.
+
+Worse, the diagnostic implementation is coupled to the registry's internal control flow.
+
+If the registry changes its validation order, an external diagnostic function can silently become wrong while still compiling and still returning plausible answers.
+
+An integrator should not need to mirror the internals of an authorization system to explain why authorization failed.
+
+The better interface is for the authorization decision itself to return both pieces of information:
+
+\`canExecute(...) -> (allowed, reason)\`
+
+One implementation of the checks.
+
+One authoritative ordering.
+
+One result for integrators.
+
+For autonomous agents, this distinction is especially important. A reason code is not merely better UX. It is machine-readable recovery policy.
+
+## Compliance Expiry Exposed a Second Gap
+
+The compliance-provider interface can return an expiration time when evaluating a principal.
+
+But that expiration is not retained in the mandate itself.
+
+That creates a subtle distinction between authorization time and execution time.
+
+A principal can satisfy a KYC or eligibility check when the mandate is created. If that eligibility expires later, the mandate needs some mechanism for recognizing that fact.
+
+Our integration chose the strict approach: re-evaluate the principal on execution.
+
+That closes the window for our asset because the latest compliance state is consulted before the action executes.
+
+But the standard can make the invariant stronger.
+
+If the compliance provider already publishes an \`expiresAt\`, the mandate can store it and include it in authorization evaluation.
+
+That gives the mandate an explicit upper bound tied to the compliance state that permitted its creation.
+
+Live re-checks can still be used by assets requiring stronger guarantees.
+
+The two approaches are complementary.
+
+## Revocation Has to Preserve History
+
+The most dangerous edge case we found was not a sophisticated exploit.
+
+It was an implementation choice that looks like a perfectly reasonable gas optimization.
+
+When a mandate is revoked, the reference implementation marks it revoked rather than deleting its record.
+
+That matters.
+
+Some integration patterns determine whether RAMS rules apply by checking whether a mandate record exists. If an implementation deletes the record entirely, downstream code can interpret the missing mandate as "no RAMS relationship exists" and fall back to ordinary token allowance behavior.
+
+An agent that still possesses an ERC-20 allowance can therefore become less restricted after revocation than it was before.
+
+That is the opposite of what revocation is supposed to mean.
+
+The reference implementation avoids the problem because the record persists.
+
+But reference behavior and normative specification are not the same thing.
+
+If safety depends on persistence, persistence should be part of the standard.
+
+The mandate record should not be deleted when revoked.
+
+A revoked authorization is still part of the security state.
+
+## There Is No Global Agent Budget
+
+ERC-8226 limits an agent within an individual principal's mandate.
+
+That means an agent holding mandates from ten principals effectively has ten independent budgets.
+
+There is no protocol-level aggregate ceiling across those principals.
+
+We do not consider that a defect by itself.
+
+It may be exactly the right boundary.
+
+Each principal controls their own exposure. A global agent cap introduces a different risk model and potentially a different authority model.
+
+But it is the kind of property integrators otherwise have to derive themselves.
+
+Standards benefit from stating these boundaries explicitly, especially when they concern risk.
+
+## We Found a Bug in Our Own Code Too
+
+Integration reviews should be symmetric.
+
+It is easy to treat the reference implementation as the object under inspection and your own code as the measuring instrument.
+
+The measuring instrument can be wrong.
+
+During this work we found a revocation bug in our own registry design.
+
+Our \`revoke()\` path left the mandate nonce unchanged. Under the wrong sequence of operations, a dead mandate could be rebound and the revocation latch reset.
+
+We fixed it and added regression coverage.
+
+The underlying failure mode was familiar: one piece of state advanced while another piece of state that defined the same authorization lifecycle did not.
+
+That is exactly why exercising a protocol through complete state transitions is more valuable than merely checking whether each function behaves sensibly in isolation.
+
+## The Integration Has Limits
+
+Our own implementation should not be described as stronger than it is.
+
+The compliance adapter uses an attested-personhood model rather than a trustless cross-chain World ID verification path.
+
+The attestor is a single externally owned account rather than a multisig.
+
+Some compliance-provider methods deliberately revert because they are not part of the operating model we implemented.
+
+And the integration has not been audited.
+
+Those constraints do not invalidate the ERC-8226 findings.
+
+They define the security boundary of the system that produced them.
+
+That distinction matters.
+
+## What We Would Change in ERC-8226
+
+The implementation exercise produced a fairly small set of specification changes.
+
+\`canExecute\` should return a structured reason alongside the boolean decision.
+
+The specification should define deterministic precedence when more than one validation condition fails.
+
+Principal compliance expiry should be representable in the mandate and enforced during execution.
+
+Revocation should preserve the mandate record rather than deleting authorization history.
+
+And the standard would benefit from a documented agent-custodied example, because autonomous payments frequently involve an agent controlling funds directly rather than merely initiating a transfer from a principal-controlled wallet.
+
+None of those changes require reinventing the model.
+
+That is a good sign.
+
+The basic architecture held up.
+
+The issues appeared where standards usually become real: error semantics, lifecycle state, and the assumptions one implementation makes about another.
+
+## Standards Are Interfaces Between Teams
+
+The most useful result of this exercise was not finding something catastrophic.
+
+It was finding the things an independent integrator has to guess.
+
+A protocol standard succeeds when two teams that have never spoken can implement opposite sides of an interface and arrive at the same behavior.
+
+That includes failure behavior.
+
+It includes revocation.
+
+It includes expiry.
+
+And, increasingly, it includes enough structured information for autonomous software to decide what to do next.
+
+ERC-8226 is still a draft.
+
+That is exactly when integration friction is useful.
+
+The right time to discover that a boolean does not carry enough information is before dozens of assets independently build their own diagnostic layer around it.`,
+  },
+  "nasdaq-order-book-mortgage-book": {
+    title: "Nasdaq Put Its Order Book on Chain. We Did It to a Mortgage Book.",
+    description:
+      "What happens when a private mortgage portfolio stops being a spreadsheet and becomes machine-readable infrastructure: loan-level state, maturities, renewals, payoffs, and portfolio changes structured so investors and software can independently verify what the book actually contains.",
+    tags: ["Data Infrastructure", "DeFi Infrastructure"],
+    image: "/articles/mortgage-book.webp",
+    author: "Alex Lazarev",
+    date: "2026-09-08",
+    readTime: "13 min read",
+    content: `*Originally published on [Medium](https://medium.com/@alexlazarev/nasdaq-put-its-order-book-on-chain-we-did-it-to-a-mortgage-book-0edfc3397dc1).*
+
+The interesting thing about putting traditional financial assets on-chain is not the token.
+
+It is the record.
+
+Nasdaq's approach to tokenized securities makes that distinction unusually clear.
+
+Traditional and tokenized shares can participate in the same market structure with the same execution priority and underlying rights. The asset does not become economically different because one representation eventually settles through blockchain infrastructure.
+
+That is the useful design principle.
+
+Do not rebuild the asset around crypto.
+
+Make the financial state machine-readable.
+
+We have been applying the same idea to a much less liquid market: Canadian private mortgages.
+
+## A Mortgage Book Is Mostly a Data Problem
+
+A private mortgage looks simple when viewed one loan at a time.
+
+A borrower owes principal.
+
+The loan has a rate.
+
+There is collateral.
+
+Payments arrive.
+
+Eventually the mortgage matures, renews, gets paid off, is extended, or defaults.
+
+The complexity appears when those loans become a portfolio.
+
+Now you have dozens or hundreds of maturity dates, different lien positions, changes to principal, renewals, partial payments, extensions, servicing events, appraisals, investor positions, and cash movements.
+
+And almost none of those systems were designed to share a common record.
+
+The legal documents know one part of the truth.
+
+The servicer knows another.
+
+The bank account knows which cash actually moved.
+
+A portfolio spreadsheet contains someone's latest interpretation of all of it.
+
+Investors typically receive a projection of that state through reporting.
+
+The problem is not that the spreadsheet is necessarily wrong.
+
+The problem is that the spreadsheet is the thing you are being asked to trust.
+
+## Turn Each Mortgage Into an Object
+
+Our approach is to give each mortgage a persistent machine-readable representation.
+
+Not the borrower's identity.
+
+Not their home address.
+
+Not their credit file.
+
+The financial state.
+
+For a mortgage, that means fields such as balance, rate, term, lien rank, current status, payment events, and maturity.
+
+Those fields form the public or permissioned financial object that systems can reason about.
+
+Sensitive source material remains off-chain.
+
+Borrower identity, property address, appraisal documents, and credit files do not belong on a public ledger. Instead, the system can retain those records in the appropriate controlled environment and anchor them cryptographically to the on-chain object.
+
+The blockchain is therefore not the document store.
+
+It is the integrity layer.
+
+If an appraisal changes, the system can establish which appraisal informed which state of the mortgage.
+
+If a term changes, that change becomes an event rather than a cell silently receiving a new value.
+
+If a balance changes, its history remains reconstructable.
+
+That is a much more useful definition of a "digital twin" than simply minting a token with an asset name attached to it.
+
+## The Token and the Digital Twin Are Different Things
+
+This distinction gets blurred constantly in RWA architecture.
+
+A token represents a position, entitlement, claim, or transferable unit.
+
+A digital twin represents state.
+
+You can have a token without a trustworthy digital twin.
+
+In fact, many tokenized assets work exactly that way. The token exists on-chain, while the information necessary to understand what backs it still lives in PDFs, spreadsheets, administrators' systems, and periodic reports.
+
+That improves distribution.
+
+It does not necessarily improve verification.
+
+For private credit, we think the state layer is at least as important as the ownership layer.
+
+If an investor owns exposure to a pool of mortgages, the valuable question is not merely, "How many tokens do I own?"
+
+It is, "What does the pool contain right now?"
+
+## Maturity Is a Good Example
+
+Suppose a portfolio has mortgages maturing across September, October, November, December, January, and February.
+
+A conventional report might show the amount maturing each month.
+
+Useful.
+
+But October arrives and the portfolio starts changing.
+
+Mortgage 0007 renews.
+
+Mortgage 0012 renews.
+
+Mortgage 0015 pays off.
+
+Mortgage 0019 renews.
+
+Mortgage 0023 is extended.
+
+The original maturity chart is no longer the whole story.
+
+The important data is the transition.
+
+A mortgage moved from one state to another, for a reason, at a point in time.
+
+That is how we model the book.
+
+The current portfolio becomes a projection of its history rather than a spreadsheet that overwrites its history.
+
+Once the distinction is made, reporting gets much more interesting.
+
+You can ask what the portfolio looks like today.
+
+You can also ask what it looked like thirty days ago.
+
+Which loans renewed?
+
+Which paid down?
+
+Which maturities were extended?
+
+How much principal was expected to roll and how much actually rolled?
+
+Those become queries instead of reconstruction exercises.
+
+## Three Systems Know Different Parts of the Truth
+
+Putting data on-chain does not make the physical world disappear.
+
+A blockchain cannot determine whether a borrower actually wired money into a bank account.
+
+It cannot independently appraise a house.
+
+It cannot decide whether the person behind a wallet passed KYC.
+
+So we do not pretend one database is authoritative for everything.
+
+Identity infrastructure is authoritative for identity.
+
+The bank is authoritative for cash.
+
+The blockchain is authoritative for immutable financial history.
+
+The important layer is reconciliation between them.
+
+Suppose the mortgage system expects a $20,000 payment.
+
+If the bank confirms $20,000, the cash event reconciles.
+
+If the bank confirms $19,800, the system has an exception.
+
+If nothing arrives, absence itself becomes detectable.
+
+That last case matters.
+
+Most reporting systems are good at recording things that happened.
+
+Financial control systems also need to identify things that were supposed to happen and did not.
+
+## Why Not Just Use a Database?
+
+You should, when a database solves the problem.
+
+If one company owns the system, controls every write, and every participant is comfortable trusting that company as the definitive historian, PostgreSQL is excellent technology.
+
+Blockchains become interesting when the trust topology changes.
+
+A mortgage portfolio can involve borrowers, originators, servicers, administrators, lenders, investors, auditors, custodians, banks, and eventually secondary-market counterparties.
+
+Those parties do not all have the same incentives.
+
+They do not all operate the same systems.
+
+And they should not need to grant one participant unilateral power to rewrite the shared history.
+
+The chain is useful because it gives those parties a common event record.
+
+Not a common opinion.
+
+A common record.
+
+That difference is why we are interested in the technology.
+
+## The Nasdaq Analogy Is About Preservation, Not Reinvention
+
+Nasdaq did not decide that tokenized shares should become economically different products with a completely separate market structure.
+
+Its framework preserves the underlying security, its rights, its symbol, and its execution priority.
+
+Tokenization changes how the position can be represented and settled.
+
+That is a far more important precedent for real-world assets than the idea of creating thousands of synthetic wrappers.
+
+The best tokenization architecture should preserve the legal and economic object while improving the infrastructure around it.
+
+For mortgages, that means the loan is still a mortgage.
+
+The lien still exists in the legal system.
+
+The property still exists off-chain.
+
+The borrower still pays through real banking rails.
+
+The appraisal still comes from an appraisal process.
+
+What changes is our ability to maintain a shared, verifiable representation of what happened.
+
+## What Goes On-Chain Matters as Much as What Stays Off
+
+"Put it on-chain" is not a data architecture.
+
+There are fields that benefit from immutable history and fields that create needless privacy exposure if published.
+
+The line should be drawn intentionally.
+
+Financial state is useful to expose or permission: outstanding balance, coupon, term, lien position, payment status, maturity, and state transitions.
+
+Personally identifiable and source-document data should remain in controlled systems: borrower identity, addresses, credit files, appraisal documents, and similar records.
+
+Cryptographic commitments connect the two.
+
+This gives an investor a way to establish that a source document corresponds to the state that was represented without turning a blockchain into a permanent database of borrower information.
+
+Privacy and transparency are not opposites.
+
+The system simply has to be transparent about the right things.
+
+## Tokenization Does Not Fix Credit
+
+None of this makes a bad mortgage good.
+
+Putting a loan on-chain does not improve the borrower's ability to repay.
+
+It does not increase the collateral value.
+
+It does not replace underwriting.
+
+It does not eliminate servicing risk.
+
+It does not make legal enforcement automatic.
+
+And it does not make an appraisal correct.
+
+That is why the "tokenization creates better assets" argument is weak.
+
+The asset keeps its credit characteristics.
+
+What can improve is the infrastructure around the asset.
+
+Ownership records can become easier to reconcile.
+
+Portfolio changes can become visible sooner.
+
+Historical state can become harder to manipulate retroactively.
+
+Servicing events can be represented consistently.
+
+Investor reporting can be generated directly from the underlying event history.
+
+Auditors can inspect the same record the product uses.
+
+Software can consume the portfolio without somebody emailing it a spreadsheet first.
+
+That is the value proposition.
+
+## From Periodic Disclosure to Continuous State
+
+Private-market reporting has historically been document-shaped.
+
+Monthly package.
+
+Quarterly report.
+
+Annual audit.
+
+Those documents are snapshots.
+
+Between snapshots, the portfolio continues moving.
+
+Loans pay.
+
+Loans miss payments.
+
+Balances change.
+
+Maturities approach.
+
+Terms are modified.
+
+Collateral values change.
+
+A machine-readable mortgage book turns reporting into a view over live state.
+
+The quarterly report does not disappear.
+
+It becomes reproducible.
+
+That is a much stronger property.
+
+Two analysts using the same state and the same rules should be able to reproduce the same portfolio view independently.
+
+An investor does not have to trust that a PDF faithfully summarizes the source system.
+
+The source system can be inspected.
+
+## The Bigger Opportunity Is Machine-Readable Credit
+
+The reason this becomes more interesting now is that investors will not be the only consumers of these records.
+
+Software will be.
+
+Risk engines can evaluate portfolio drift continuously.
+
+Treasury systems can model expected cash flows from actual maturity state.
+
+Compliance systems can gate access based on structured rules.
+
+Agents can rebalance exposure or flag servicing exceptions.
+
+Auditors can verify event histories programmatically.
+
+None of that works particularly well when the canonical representation of the asset is a PDF attachment.
+
+The real infrastructure shift is therefore not "mortgages as tokens."
+
+It is mortgages as programmable financial objects.
+
+## The Spreadsheet Was Never the Asset
+
+A mortgage does not become more real because it is in a spreadsheet.
+
+And it does not become more real because it is on a blockchain.
+
+The mortgage is real because a legal agreement, a borrower obligation, and collateral exist outside the software.
+
+The software's job is to represent that reality faithfully.
+
+For decades, private markets have accepted infrastructure where understanding the current state of an asset often requires trusting an administrator, reconciling several systems, or waiting for the next report.
+
+We can do better than that.
+
+Nasdaq's move toward tokenized settlement is interesting because it does not require pretending traditional finance was wrong about what the asset is.
+
+It asks whether the rails can improve.
+
+That is the same question we are asking with private mortgages.
+
+Keep the mortgage.
+
+Keep the legal structure.
+
+Keep sensitive information where it belongs.
+
+Make the financial state machine-readable, reconcile it to the real world, and give every authorized participant the ability to verify the history for themselves.
+
+That is the part of tokenization worth building.`,
+  },
 };
 
 export const BLOG_SLUGS = Object.keys(BLOG_POSTS);
